@@ -1,0 +1,244 @@
+{
+  "account_id": "123456789012",
+  "users": [
+    {
+      "UserName": "dev-user",
+      "UserId": "AIDAEXAMPLEDEVUSER01",
+      "Arn": "arn:aws:iam::123456789012:user/dev-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [
+        {
+          "PolicyName": "LambdaDevPolicy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "iam:PassRole",
+                "Resource": "arn:aws:iam::123456789012:role/LambdaExecutionRole"
+              },
+              {
+                "Effect": "Allow",
+                "Action": ["lambda:CreateFunction", "lambda:InvokeFunction"],
+                "Resource": "*"
+              }
+            ]
+          }
+        }
+      ],
+      "GroupList": ["Developers"]
+    },
+    {
+      "UserName": "ops-user",
+      "UserId": "AIDAEXAMPLEOPSUSER001",
+      "Arn": "arn:aws:iam::123456789012:user/ops-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": ["Operators"]
+    },
+    {
+      "UserName": "readonly-user",
+      "UserId": "AIDAEXAMPLEREADONLY01",
+      "Arn": "arn:aws:iam::123456789012:user/readonly-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": ["ReadOnly"]
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "LambdaExecutionRole",
+      "RoleId": "AROAEXAMPLELAMBDAROLE",
+      "Arn": "arn:aws:iam::123456789012:role/LambdaExecutionRole",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"Service": "lambda.amazonaws.com"},
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          "PolicyName": "AWSLambdaBasicExecutionRole"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "AdminRole",
+      "RoleId": "AROAEXAMPLEADMINROLE1",
+      "Arn": "arn:aws:iam::123456789012:role/AdminRole",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": [
+                "arn:aws:iam::123456789012:role/LambdaExecutionRole",
+                "arn:aws:iam::999999999999:root"
+              ]
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess",
+          "PolicyName": "AdministratorAccess"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "DevRole",
+      "RoleId": "AROAEXAMPLEDEVROLE01",
+      "Arn": "arn:aws:iam::123456789012:role/DevRole",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"Service": "ec2.amazonaws.com"},
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::123456789012:policy/DeveloperPolicy",
+          "PolicyName": "DeveloperPolicy"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "EC2InstanceRole",
+      "RoleId": "AROAEXAMPLEEC2ROLE001",
+      "Arn": "arn:aws:iam::123456789012:role/EC2InstanceRole",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"Service": "ec2.amazonaws.com"},
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::123456789012:policy/ReadOnlyPolicy",
+          "PolicyName": "ReadOnlyPolicy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "Developers",
+      "GroupId": "AGPAEXAMPLEDEVELOPERS",
+      "Arn": "arn:aws:iam::123456789012:group/Developers",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::123456789012:policy/DeveloperPolicy",
+          "PolicyName": "DeveloperPolicy"
+        }
+      ],
+      "GroupPolicyList": []
+    },
+    {
+      "GroupName": "Operators",
+      "GroupId": "AGPAEXAMPLEOPERATORS1",
+      "Arn": "arn:aws:iam::123456789012:group/Operators",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::123456789012:policy/DeveloperPolicy",
+          "PolicyName": "DeveloperPolicy"
+        }
+      ],
+      "GroupPolicyList": [
+        {
+          "PolicyName": "OperatorInlinePolicy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ec2:StartInstances",
+                  "ec2:StopInstances",
+                  "ec2:RebootInstances"
+                ],
+                "Resource": "arn:aws:ec2:us-east-1:123456789012:instance/*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "GroupName": "ReadOnly",
+      "GroupId": "AGPAEXAMPLEREADONLY01",
+      "Arn": "arn:aws:iam::123456789012:group/ReadOnly",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::123456789012:policy/ReadOnlyPolicy",
+          "PolicyName": "ReadOnlyPolicy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "DeveloperPolicy",
+      "PolicyArn": "arn:aws:iam::123456789012:policy/DeveloperPolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:ListBucket"
+            ],
+            "Resource": "arn:aws:s3:::dev-*"
+          },
+          {
+            "Effect": "Allow",
+            "Action": "ec2:Describe*",
+            "Resource": "*"
+          }
+        ]
+      }
+    },
+    {
+      "PolicyName": "ReadOnlyPolicy",
+      "PolicyArn": "arn:aws:iam::123456789012:policy/ReadOnlyPolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:GetBucketLocation",
+              "s3:ListBucket",
+              "s3:ListAllMyBuckets"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    }
+  ]
+}

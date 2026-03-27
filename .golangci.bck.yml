@@ -1,0 +1,58 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - unparam
+    - noctx
+    - bodyclose
+    - exportloopref
+    - godot
+    - godox
+    - nolintlint
+    - revive
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/JamesOlaitan/accessgraph
+  godot:
+    scope: declarations
+    capital: true
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: var-naming
+        severity: warning
+      - name: package-comments
+        severity: warning
+  godox:
+    keywords:
+      - FIXME
+      - HACK
+
+issues:
+  exclude-rules:
+    # Tests are allowed to use fmt.Print and os.Exit equivalents.
+    - path: _test\.go
+      linters:
+        - noctx
+    # Generated code is excluded.
+    - path: internal/store/schema\.go
+      linters:
+        - godot
+  max-issues-per-linter: 50
+  max-same-issues: 10

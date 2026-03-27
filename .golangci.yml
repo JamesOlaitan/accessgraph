@@ -1,0 +1,67 @@
+version: "2"
+run:
+  modules-download-mode: readonly
+linters:
+  enable:
+    - bodyclose
+    - godot
+    - godox
+    - misspell
+    - noctx
+    - nolintlint
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    godot:
+      scope: declarations
+      capital: true
+    godox:
+      keywords:
+        - FIXME
+        - HACK
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: var-naming
+          severity: warning
+        - name: package-comments
+          severity: warning
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - noctx
+        path: _test\.go
+      - linters:
+          - godot
+        path: internal/store/schema\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/JamesOlaitan/accessgraph
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

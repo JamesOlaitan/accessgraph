@@ -1,0 +1,6 @@
+# Python dependencies for AccessGraph benchmark execution.
+# Pin these exactly. Do not change versions without re-verifying all five
+# outputAdapter.parse() implementations against the new tool output format.
+# Install with: pip install -r requirements-benchmark.txt
+prowler==5.20.0
+checkov==3.2.509

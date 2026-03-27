@@ -1,0 +1,46 @@
+# Compiled binaries
+bin/
+dist/
+accessgraph
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Go workspace
+go.work
+go.work.sum
+
+# Benchmark outputs (generated at runtime)
+benchmark_results/
+results/
+
+# IAMVulnerable working directory (populated by scripts)
+iamvulnerable/
+
+# Generated OPA bundle artifacts
+bundle.tar.gz
