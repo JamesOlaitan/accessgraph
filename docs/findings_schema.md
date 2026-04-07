@@ -321,15 +321,12 @@ The `false_positive_rate` object contains FPR computed from true negative enviro
 /* illustrative values only — do not treat as expected results */
 {
   "false_positive_rate": {
-    "accessgraph":  { "false_positives": 0, "true_negatives": 10, "tn_timeouts": 0, "fpr": 0.000000, "fpr_ci95_low": 0.000000, "fpr_ci95_high": 0.308677 },
-    "pmapper":      { "false_positives": 0, "true_negatives": 10, "tn_timeouts": 0, "fpr": 0.000000, "fpr_ci95_low": 0.000000, "fpr_ci95_high": 0.308677 },
-    "prowler":      { "false_positives": 2, "true_negatives": 8,  "tn_timeouts": 0, "fpr": 0.200000, "fpr_ci95_low": 0.056442, "fpr_ci95_high": 0.508411 },
-    "checkov":      { "false_positives": 0, "true_negatives": 10, "tn_timeouts": 0, "fpr": 0.000000, "fpr_ci95_low": 0.000000, "fpr_ci95_high": 0.308677 },
-    "steampipe":    { "false_positives": 1, "true_negatives": 9,  "tn_timeouts": 0, "fpr": 0.111111, "fpr_ci95_low": 0.019732, "fpr_ci95_high": 0.436529 },
-    "cloudsploit":  { "false_positives": 0, "true_negatives": 10, "tn_timeouts": 0, "fpr": 0.000000, "fpr_ci95_low": 0.000000, "fpr_ci95_high": 0.308677 }
+    "accessgraph":  { "false_positives": 0, "true_negatives": 10, "tn_timeouts": 0, "fpr": 0.000000, "fpr_ci95_low": 0.000000, "fpr_ci95_high": 0.308677, "fpr_measured": true }
   }
 }
 ```
+
+Only tools that were actually evaluated against true-negative environments (i.e., produced `LabelFP` or `LabelTN` results on TN scenarios) appear in this object. Currently only AccessGraph meets this criterion. External tools whose `dispatch()` path returns `LabelFN` unconditionally on TN environments do not appear here; their FPR is not measured by this benchmark.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -339,6 +336,7 @@ The `false_positive_rate` object contains FPR computed from true negative enviro
 | `fpr` | float | `false_positives / (false_positives + true_negatives)` |
 | `fpr_ci95_low` | float | Lower bound of Wilson score 95% confidence interval for FPR |
 | `fpr_ci95_high` | float | Upper bound of Wilson score 95% confidence interval for FPR |
+| `fpr_measured` | boolean | `true` when the tool was actually evaluated against true-negative environments and produced `LabelFP` or `LabelTN` results. `false` (or absent) means the FPR value represents an unmeasured default, not a confirmed measurement. An `fpr_measured: false` entry with `fpr: 0.000000` means "not measured," not "confirmed zero FPR." |
 
 ---
 

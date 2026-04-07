@@ -211,17 +211,20 @@ func (a *defaultAggregator) Aggregate(
 	}
 
 	// Build FPRByTool (only when TN scenarios exist).
+	// A tool appears in fprAcc only when it produced LabelFP or LabelTN results
+	// on TN scenarios, which means its FPR was actually measured.
 	fprByTool := make(map[model.ToolName]*model.FalsePositiveRate)
 	for tool, fc := range fprAcc {
 		n := fc.fp + fc.tn
 		fprHat, fprLow, fprHigh := wilsonCI(fc.fp, n)
 		fprByTool[tool] = &model.FalsePositiveRate{
-			FP:         fc.fp,
-			TN:         fc.tn,
-			TNTimeouts: fc.tnTimeouts,
-			FPR:        model.MetricFloat(fprHat),
-			FPRLow:     model.MetricFloat(fprLow),
-			FPRHigh:    model.MetricFloat(fprHigh),
+			FP:          fc.fp,
+			TN:          fc.tn,
+			TNTimeouts:  fc.tnTimeouts,
+			FPR:         model.MetricFloat(fprHat),
+			FPRLow:      model.MetricFloat(fprLow),
+			FPRHigh:     model.MetricFloat(fprHigh),
+			FPRMeasured: true,
 		}
 	}
 

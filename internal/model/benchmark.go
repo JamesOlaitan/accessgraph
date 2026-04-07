@@ -256,13 +256,21 @@ type ToolMetrics struct {
 
 // FalsePositiveRate holds the FPR (FP / (FP + TN)) and its Wilson-score 95%
 // confidence interval for one tool across all true-negative scenarios.
+//
+// FPRMeasured distinguishes a confirmed zero FPR from an unmeasured FPR.
+// It is true only when the tool was actually evaluated against true-negative
+// environments and produced LabelFP or LabelTN results. External tools whose
+// dispatch() path returns LabelFN unconditionally on TN environments have
+// FPRMeasured=false; their FPR values represent unmeasured FPR, not confirmed
+// zero FPR.
 type FalsePositiveRate struct {
-	FP         int         `json:"false_positives"`
-	TN         int         `json:"true_negatives"`
-	TNTimeouts int         `json:"tn_timeouts"`
-	FPR        MetricFloat `json:"fpr"`
-	FPRLow     MetricFloat `json:"fpr_ci95_low"`
-	FPRHigh    MetricFloat `json:"fpr_ci95_high"`
+	FP          int         `json:"false_positives"`
+	TN          int         `json:"true_negatives"`
+	TNTimeouts  int         `json:"tn_timeouts"`
+	FPR         MetricFloat `json:"fpr"`
+	FPRLow      MetricFloat `json:"fpr_ci95_low"`
+	FPRHigh     MetricFloat `json:"fpr_ci95_high"`
+	FPRMeasured bool        `json:"fpr_measured"`
 }
 
 // AggregationResult is the output of Aggregator.Aggregate.

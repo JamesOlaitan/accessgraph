@@ -279,10 +279,13 @@ The following limitations apply to the benchmark evaluation. See
 - **IAMVulnerable coverage.** The 31 scenarios are a curated subset of known
   escalation paths. AccessGraph's detection capability on paths not present in
   IAMVulnerable is not measured.
-- **External tool FPR not measured.** The false positive rate entries for
-  external tools in benchmark output represent unmeasured values, not confirmed
-  zero FPR. Only AccessGraph's FPR is measured against true negative
-  environments.
+- **External tool FPR not measured.** Only AccessGraph's FPR is measured
+  against true negative environments. External tools' dispatch paths return
+  `LabelFN` on TN scenarios unconditionally, so no FPR entry is emitted for
+  them in benchmark output. Consumers can check the `fpr_measured` field on
+  each `false_positive_rate` entry: `fpr_measured: false` means the value was
+  not measured; `fpr_measured: true` means it was computed from actual TN
+  evaluations.
 - **Static analysis only.** IAM condition keys are parsed but not evaluated
   during traversal. Permission boundaries are detected as findings but do not
   constrain BFS. Service control policies (SCPs) are not modeled.
