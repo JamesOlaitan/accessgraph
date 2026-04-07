@@ -435,7 +435,7 @@ Each scenario fixture in `fixtures/iamvulnerable/vulnerable/` (or `clean/` for T
   "source": "modules/free-resources/privesc-paths/privesc1-CreateNewPolicyVersion",
   "category": "direct_policy",
   "chain_length_class": "simple",
-  "classification_override": false,
+  "classification_override": "",
   "is_true_negative": false,
   "starting_principal_arn": "arn:aws:iam::ACCOUNT_ID:user/privesc1-CreateNewPolicyVersion-user",
   "expected_escalation_actions": ["iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion"],
@@ -454,7 +454,7 @@ True negative example:
   "source": "",
   "category": "none",
   "chain_length_class": "none",
-  "classification_override": false,
+  "classification_override": "",
   "is_true_negative": true,
   "starting_principal_arn": "",
   "expected_escalation_actions": [],
@@ -464,12 +464,7 @@ True negative example:
 
 `expected_path_nodes` (mapped to `ExpectedPathNodes` in the `Scenario` struct) provides internal node IDs of the expected path. The canonical match target for all tools (via the per-tool proxy in Section 4.1) is the `expected_attack_path` field (mapped to `ExpectedAttackPath` in code).
 `expected_escalation_actions` is retained for post-hoc mechanism analysis only; it does not affect TP/FN scoring.
-`classification_override` is `true` when `chain_length_class` was assigned by the
-mechanism taxonomy in Section 1.1 rather than the hop-count definition in ARCHITECTURE.md §6.
-Currently only `privesc-sageMakerCreatePresignedNotebookURL` has this flag set to `true`
-(see Section 1.2). When `classification_override` is `true`, the terminal renderer must display
-an asterisk (`*`) next to the scenario's class in per-class tables, and the JSON renderer
-must include the field so consumers can filter or footnote overridden scenarios.
+`classification_override` is a string field containing a `DetectionLabel` value. It is non-empty when a human reviewer has overridden the auto-assigned detection label for a result. It is empty string when no override exists. It is not related to the taxonomy vs. hop-count classification mechanism.
 
 ### 4.3 Per-tool detection criteria
 

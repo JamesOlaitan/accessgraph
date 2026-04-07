@@ -36,3 +36,9 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   referenced `--account-id` (which did not exist) and a
   `--scenarios` path that did not match the actual flag contract.
   Both corrected.
+- `docs/benchmark_methodology.md` §4.2 was internally inconsistent
+  with `docs/findings_schema.md` §2.1 on the `classification_override`
+  field type and semantics. The methodology doc carried boolean /
+  taxonomy-override prose; the schema doc had been rewritten to
+  string DetectionLabel reviewer-override semantics. Synced the
+  methodology doc to match the schema doc as the canonical source.
