@@ -770,7 +770,8 @@ go test \
 
 # 4. Or invoke the CLI benchmark directly
 ./bin/accessgraph benchmark \
-  --scenarios $(pwd)/iam-vulnerable/scenarios \
+  --scenarios $(pwd)/iam-vulnerable \
+  --account-id $AWS_ACCOUNT_ID \
   --tools prowler,pmapper,checkov,steampipe,cloudsploit \
   --output json \
   > results/comparison_report.json

@@ -159,13 +159,21 @@ performed; this command renders only data stored by a prior `analyze` run.
 
 ```
 ./bin/accessgraph benchmark \
-  --scenarios <path-to-iamvulnerable-dir> \
+  --scenarios <path-to-scenario-fixtures-dir> \
   --tools prowler,pmapper,checkov,steampipe,cloudsploit \
+  --account-id <aws-account-id> \
   --output json
 ```
 
 This requires the `integration` build tag and external tools installed on
 `$PATH`. See [Benchmark Reproduction](#benchmark-reproduction) for details.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--scenarios` | required | Directory containing scenario subdirectories, each with a `manifest.json` and IAM export JSON |
+| `--tools` | `accessgraph` | Comma-separated list: `accessgraph`, `prowler`, `pmapper`, `checkov`, `steampipe`, `cloudsploit` |
+| `--output` | `terminal` | Output format: `terminal` or `json` |
+| `--account-id` | (empty) | AWS account ID of the test account; used by live-AWS fixture capture |
 
 ## Benchmark Reproduction
 
