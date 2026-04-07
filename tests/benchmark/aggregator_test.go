@@ -452,10 +452,9 @@ func TestAggregateTNOnTNScenario(t *testing.T) {
 	}
 }
 
-// TestAggregateClassificationOverride verifies that a scenario with
-// ClassificationOverride=true propagates the flag into the AggregationResult.
-// The spec requires this flag to be preserved in the result so the terminal
-// renderer can display an asterisk (*) next to overridden classes.
+// TestAggregateClassificationOverride verifies that a BenchmarkResult with a
+// non-empty ClassificationOverride (a DetectionLabel string set by a human
+// reviewer) is correctly counted in the per-class TP aggregation.
 func TestAggregateClassificationOverride(t *testing.T) {
 	ctx := context.Background()
 	ds := store.NewMemStore()

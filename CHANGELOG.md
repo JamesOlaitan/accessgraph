@@ -24,6 +24,12 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - README limitations note on external tool FPR now references the
   `fpr_measured` schema field instead of describing the gap in
   prose only.
+- Updated stale doc comment on `TestAggregateClassificationOverride`
+  in the aggregator test. The comment described `classification_override`
+  as a boolean flag and referenced a planned-but-never-implemented
+  asterisk display in the terminal renderer. The test code already used
+  the correct string `DetectionLabel` semantics; only the comment was
+  out of date.
 
 ### Fixed
 - `docs/benchmark_methodology.md` §7.1 reproduction example
