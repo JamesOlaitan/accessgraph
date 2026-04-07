@@ -1,7 +1,7 @@
 # Compiled binaries
 bin/
 dist/
-accessgraph
+/accessgraph
 
 # Test artifacts
 *.test
