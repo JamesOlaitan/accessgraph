@@ -8,6 +8,22 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `terraform/tn-environments/`: 10 true-negative environment modules
+  (`tn-clean-001` through `tn-clean-010`) per
+  `docs/benchmark_methodology.md §5.1`. Each module deploys least-privilege
+  IAM users (read-only managed policies only) and one lambda-trust IAM role
+  with no dangerous permissions. Modules vary in user count (3-5), specific
+  managed policies attached, side resources (Lambda functions, S3 buckets),
+  and lambda role trust conditions. All 10 modules have unique
+  (user_count, side_resource, trust_type) combinations: 3 modules with 3
+  users (001, 007, 010), 3 with 4 users (002, 004, 008), 4 with 5 users
+  (003, 005, 006). The variation exists to provide independent
+  observations for Wilson score CI computation, not as casual diversity --
+  identical modules would be pseudoreplication and would invalidate the CI
+  assumption of independent Bernoulli trials. No escalation-taxonomy action
+  from IAMVulnerable is present in any module (verified by grep at commit
+  time). Each module has its own `.terraform.lock.hcl` with cross-platform
+  hashes.
 - `terraform/scanner-role/` module: Terraform infrastructure for the
   `AccessGraphBenchmarkScanner` IAM role per
   `docs/benchmark_methodology.md §2.2`. Attaches AWS managed policies
