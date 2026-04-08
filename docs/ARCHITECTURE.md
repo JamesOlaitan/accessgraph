@@ -72,7 +72,7 @@ Reproducible builds require that `go build` produces the same binary regardless 
 
 - **`go.sum` is committed:** Every indirect dependency has a pinned hash in `go.sum`. `go mod verify` must pass in CI.
 - **No `replace` directives** pointing to local paths in `go.mod` — these break reproducibility for any consumer outside the original machine.
-- **The Docker benchmark image** is built `FROM golang:1.26-alpine` with a pinned digest (not a floating tag).
+- **The Docker benchmark image** is built `FROM golang:1.26-bookworm@sha256:<digest>` with a pinned digest (not a floating tag). Bookworm (Debian-slim) is used instead of Alpine because Checkov's official docs explicitly warn against installing Checkov on Alpine due to incompatible C extensions, and the cost of glibc-based images for this benchmark's image-size budget is negligible. The exact digest is selected at Dockerfile authoring time and committed alongside the Dockerfile.
 
 Vendoring (`go mod vendor`, `-mod=vendor` builds, CI vendor check) is planned but not yet implemented — see Section 15.
 
@@ -93,7 +93,9 @@ The benchmark runs inside a **single Docker image** that co-installs Go, Prowler
 
 `config.Load()` reads these environment variables; empty values are allowed only when the corresponding tool is not in the `--tools` flag list. `IAMVulnerableDir` is the root of the cloned IAMVulnerable repository, used by adapters to resolve tool-specific sub-paths (see Section 11).
 
-**Python environment note:** The Docker image contains two Python virtual environments: Python 3.11 for Prowler (which is incompatible with Python 3.14 at runtime due to pydantic v1 `ConfigError`) and Python 3.14 for Checkov. `benchmark.ToolConfig.Prowler` and `benchmark.ToolConfig.Checkov` point to the respective venv binaries (`/opt/venv-prowler/bin/prowler` and `/opt/venv-checkov/bin/checkov`). PMapper runs in the Prowler venv (both require Python 3.11).
+**Python environment note:** The Docker image contains two Python 3.11 virtual environments — one for Prowler+PMapper and one for Checkov. Both tools target Python 3.11 (Prowler supports Python 3.10-3.12 per its PyPI metadata `Requires: Python <3.13, >3.9.1`; Checkov supports Python 3.9-3.13 inclusive). The two venvs are isolated despite sharing a Python version because Prowler pins pydantic v1 and Checkov pulls in pydantic v2 transitively — these cannot coexist in a single virtual environment. `benchmark.ToolConfig.Prowler` and `benchmark.ToolConfig.Checkov` point to the respective venv binaries (`/opt/venv-prowler/bin/prowler` and `/opt/venv-checkov/bin/checkov`). PMapper installs into the Prowler venv via `pip install principalmapper`, exposing the `pmapper` CLI on the venv's `bin/` path.
+
+**Prowler version pinning rationale:** This work pins `prowler==5.20.0` (released 2026-03-12) and does not bump to newer 5.21+ releases. Prowler 5.21 introduced an "Attack Paths" feature with privilege escalation queries from the pathfinding.cloud library, but Attack Paths runs in the Prowler App API worker (with a Neo4j backend), not in the standalone `prowler aws` CLI invocation that this benchmark uses. The 5.21 release notes also describe enhanced IAM privilege escalation detection added under AWS checks, but it is unclear from public release notes whether these are CLI-level checks or App-level Neo4j queries. Pinning to 5.20.0 avoids the risk of unverified detection-logic shifts that would invalidate the captured benchmark recall numbers. A future release (v1.1) may re-run the benchmark against newer Prowler versions for comparison.
 
 `docker-compose.yml` is for **local development only** — it starts tool containers for interactive use. `docker-compose.yml` is not the benchmark execution environment. The single-image design ensures that the tool invocation paths exercised in CI are identical to those used to produce published results.
 
@@ -692,6 +694,7 @@ accessgraph/
 │ ├── audit.sh ← Architectural fitness checks (layer deps, interfaces, MetricFloat, JSON tags)
 │ └── run_iamvulnerable.sh ← Automates benchmark against all scenarios
 │
+├── Dockerfile ← Single benchmark image: Go + Python 3.11 (two venvs) + Steampipe v2 + Node.js + CloudSploit
 ├── docker-compose.yml ← (see Section 15)
 ├── requirements-benchmark.txt ← Pinned Python deps for benchmark execution (Prowler==5.20.0, Checkov==3.2.509)
 ├── .github/
@@ -1730,12 +1733,14 @@ The following items are specified in this document but not yet implemented. They
 
 3. **Fixture directory** (`fixtures/iamvulnerable/`). Pre-captured IAM environment snapshots for the 31 IAMVulnerable scenarios and TN environments, plus canonical tool output files in `fixtures/tool_outputs/` for offline adapter testing and benchmark reproduction.
 
-4. **Docker compose configuration** (`docker-compose.yml`). Local development configuration for starting tool dependency containers interactively.
+4. **Dockerfile.** Single benchmark image co-installing Go, two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov), Steampipe v2, Node.js, and CloudSploit. Built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
 
-5. **Go performance benchmarks** (Go `testing.B`). BFS performance benchmarks at varying graph sizes to validate the O(V + E) complexity claim empirically. Needed before any wall-clock performance claims can be made.
+5. **Docker compose configuration** (`docker-compose.yml`). Local development configuration for starting tool dependency containers interactively.
 
-6. **Deferred Makefile targets.** Eleven targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `docker-build`, `docker-up`, `docker-down`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce-fixtures`, `reproduce`. See Section 14 for full descriptions and prerequisites.
+6. **Go performance benchmarks** (Go `testing.B`). BFS performance benchmarks at varying graph sizes to validate the O(V + E) complexity claim empirically. Needed before any wall-clock performance claims can be made.
 
-7. **Vendoring.** The module will be vendored (`go mod vendor`). All builds — local, CI, and Docker — will use `go build -mod=vendor`. A CI vendor check (`go mod vendor && git diff --exit-code vendor/`) will fail the build if the vendor directory is out of sync with `go.mod`. The `make vendor` target will regenerate the vendor directory. `make verify-deps` will run `go mod verify` and the vendor diff check without building.
+7. **Deferred Makefile targets.** Eleven targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `docker-build`, `docker-up`, `docker-down`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce-fixtures`, `reproduce`. See Section 14 for full descriptions and prerequisites.
+
+8. **Vendoring.** The module will be vendored (`go mod vendor`). All builds — local, CI, and Docker — will use `go build -mod=vendor`. A CI vendor check (`go mod vendor && git diff --exit-code vendor/`) will fail the build if the vendor directory is out of sync with `go.mod`. The `make vendor` target will regenerate the vendor directory. `make verify-deps` will run `go mod verify` and the vendor diff check without building.
 
 ---

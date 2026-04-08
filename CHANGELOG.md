@@ -71,6 +71,7 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   out of date.
 
 ### Fixed
+- `docs/ARCHITECTURE.md` Benchmark Execution Model section had several factual errors corrected: Checkov was incorrectly documented as targeting Python 3.14 (Checkov supports Python 3.9-3.13 inclusive); the rationale for the two-venv split was incorrectly attributed to Python 3.14 runtime incompatibility (the actual cause is the pydantic v1/v2 dependency conflict between Prowler and Checkov); both venvs now correctly target Python 3.11. The Docker base image recommendation was changed from `golang:1.26-alpine` to `golang:1.26-bookworm` because Checkov's official docs warn against Alpine for C extension reasons. The Dockerfile was added to the file tree and to the Planned Extensions section (it was previously missing entirely). A Prowler version pinning rationale paragraph was added explaining why this work pins 5.20.0 and does not bump to 5.21+ despite their availability. No code, test, or other doc changed.
 - `docs/benchmark_methodology.md` §7.1 reproduction example
   referenced `--account-id` (which did not exist) and a
   `--scenarios` path that did not match the actual flag contract.
