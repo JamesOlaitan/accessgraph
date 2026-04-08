@@ -224,6 +224,7 @@ accessgraph/
 ├── policy/                OPA Rego rules (4 files)
 ├── sample/                Sample IAM data for demo and tests
 ├── docs/                  Specification documents
+├── terraform/             Terraform infrastructure (scanner role, 10 TN environments)
 └── scripts/               Automation and audit scripts
 ```
 
