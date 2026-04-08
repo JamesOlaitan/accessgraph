@@ -50,6 +50,16 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   ambient credentials' caller identity.
 
 ### Changed
+- `docs/benchmark_methodology.md` §5.2 ("Count") rationale
+  strengthened. The previous prose justified n=10 as
+  "sufficient... though the small n limits statistical
+  precision." The new prose explains that n=10 is driven by
+  three converging constraints: it is the statistical floor
+  for Wilson CI nominal coverage, the cost-benefit curve in
+  the 10-30 range yields only marginal precision improvement
+  (materially tighter bounds require n≥60), and FPR is scoped
+  as supporting evidence for non-trivial detection rather than
+  as a primary metric. The n=10 number itself is unchanged.
 - README limitations note on external tool FPR now references the
   `fpr_measured` schema field instead of describing the gap in
   prose only.

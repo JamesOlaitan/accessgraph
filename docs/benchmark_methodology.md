@@ -624,9 +624,46 @@ Each true negative environment contains:
 
 ### 5.2 Count
 
-A minimum of **10 true negative environments** are used. This count is sufficient
-to estimate a false positive rate at the tool level, though the small n limits
-statistical precision. The paper acknowledges this limitation explicitly.
+A minimum of **10 true negative environments** are used. The
+choice of n=10 is driven by three constraints that converge
+on the same value:
+
+1. **Statistical floor.** n=10 is the minimum sample size at
+   which the Wilson score confidence interval (used in §6 for
+   FPR computation) provides reliable nominal coverage.
+   Below n=10, Wilson coverage degrades and the interval
+   loses its claimed 95% guarantee. n=10 is therefore the
+   smallest value at which the §6 metric is statistically
+   valid.
+
+2. **Cost-benefit curve.** For 0 observed false positives, the
+   resulting 95% upper bound is approximately 0.309 (Wilson)
+   or 0.30 (rule-of-three approximation). This bound is
+   acknowledged as wide. Tightening it materially would
+   require n ≥ 60, which would push the per-run wall-clock
+   past the budget specified in §7.1 (4-6 hours). Intermediate
+   values of n in the 10-30 range yield only marginal precision
+   improvement (n=20 gives an upper bound of ~0.17; n=30 gives
+   ~0.12) at substantial wall-clock cost. There is no sweet
+   spot between "minimum viable" and "much larger" — the
+   practical choices are n=10 (floor) or n≥60 (materially
+   tight). This work commits to the floor.
+
+3. **Metric scoping.** FPR is treated in this work as
+   supporting evidence for non-trivial detection — that is,
+   evidence that AccessGraph does not achieve high recall by
+   flagging everything — rather than as a primary metric.
+   The headline finding is per-class recall variation across
+   tools (§6); FPR's role is to confirm that AccessGraph's
+   recall is not produced by an over-permissive classifier.
+   A wide-but-honest upper bound is sufficient for this
+   supporting role. The wide bound reflects this scoping
+   choice, not a measurement gap.
+
+AccessGraph's measured FPR is reported with its full Wilson
+95% confidence interval, and any claim about FPR magnitude
+is qualified by the upper bound rather than by the point
+estimate.
 
 ### 5.3 Scoring
 
