@@ -37,8 +37,6 @@ var ErrInvalidInput = errors.New("invalid input")
 //   - ProwlerPath: path to the prowler binary; defaults to "prowler".
 //   - PMapperPath: path to the pmapper binary; defaults to "pmapper".
 //   - CheckovPath: path to the checkov binary; defaults to "checkov".
-//   - SteampipePath: path to the steampipe binary; defaults to "steampipe".
-//   - CloudSploitPath: path to the cloudsploit binary; defaults to "cloudsploit".
 type ToolConfig struct {
 	// ProwlerPath is the path to the Prowler binary.
 	// If empty, "prowler" is resolved via PATH at invocation time.
@@ -51,14 +49,6 @@ type ToolConfig struct {
 	// CheckovPath is the path to the Checkov binary.
 	// If empty, "checkov" is resolved via PATH at invocation time.
 	CheckovPath string
-
-	// SteampipePath is the path to the Steampipe binary.
-	// If empty, "steampipe" is resolved via PATH at invocation time.
-	SteampipePath string
-
-	// CloudSploitPath is the path to the CloudSploit binary.
-	// If empty, "cloudsploit" is resolved via PATH at invocation time.
-	CloudSploitPath string
 }
 
 // BinaryPathFor returns the configured binary path for the given tool.
@@ -72,10 +62,6 @@ func (c ToolConfig) BinaryPathFor(tool model.ToolName) string {
 		return c.PMapperPath
 	case model.ToolCheckov:
 		return c.CheckovPath
-	case model.ToolSteampipe:
-		return c.SteampipePath
-	case model.ToolCloudSploit:
-		return c.CloudSploitPath
 	default:
 		return ""
 	}
@@ -129,12 +115,6 @@ func newRunner(cfg ToolConfig) *runner {
 	}
 	if cfg.CheckovPath == "" {
 		cfg.CheckovPath = "checkov"
-	}
-	if cfg.SteampipePath == "" {
-		cfg.SteampipePath = "steampipe"
-	}
-	if cfg.CloudSploitPath == "" {
-		cfg.CloudSploitPath = "cloudsploit"
 	}
 	return &runner{cfg: cfg}
 }

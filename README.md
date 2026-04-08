@@ -12,7 +12,7 @@ what depth. Policy violations are evaluated using embedded OPA rules against
 four Rego rulesets covering wildcard actions, cross-account trust, escalation
 primitives, and sensitivity classification.
 
-The five open-source tools benchmarked alongside AccessGraph span a range of
+The three open-source tools benchmarked alongside AccessGraph span a range of
 approaches. PMapper (NCC Group) is itself graph-based: it models IAM principals
 as a directed graph and performs multi-hop path traversal to find privilege
 escalation routes. Prowler has introduced attack path visualization that links
@@ -20,16 +20,15 @@ resources, findings, and permissions into a knowledge graph, though its
 individual checks have historically evaluated per-policy conditions. Checkov
 performs static analysis of infrastructure-as-code templates, evaluating each
 policy document independently without cross-principal graph traversal.
-Steampipe executes SQL-based queries against cloud APIs with per-check
-benchmarks. CloudSploit evaluates individual resource configurations against
-fixed rule patterns. None of these tools, however, combine graph-based
-escalation path discovery with quantitative blast-radius metrics (reachable
-resource counts, percentage of environment reachable, minimum hop depth to
-admin) or provide a systematic benchmark comparison with precision, recall, and
-F1 scores across all tools on a common dataset.
+None of these tools, however, combine graph-based escalation path discovery
+with quantitative blast-radius metrics (reachable resource counts, percentage
+of environment reachable, minimum hop depth to admin) or provide a systematic
+benchmark comparison with precision, recall, and F1 scores across all tools on
+a common dataset. See `docs/benchmark_methodology.md` Section 1.3 for the
+tool selection rationale.
 
 AccessGraph contributes a benchmark harness that evaluates detection coverage
-across all six tools on the 31 privilege escalation scenarios in the
+across all four tools on the 31 privilege escalation scenarios in the
 [IAMVulnerable](https://github.com/BishopFox/iam-vulnerable) dataset (Seth Art,
 Bishop Fox, 2021). The benchmark produces per-tool precision, recall, and F1
 scores broken down by chain-length class (simple, two-hop, multi-hop), with
@@ -160,7 +159,7 @@ performed; this command renders only data stored by a prior `analyze` run.
 ```
 ./bin/accessgraph benchmark \
   --scenarios <path-to-scenario-fixtures-dir> \
-  --tools prowler,pmapper,checkov,steampipe,cloudsploit \
+  --tools prowler,pmapper,checkov \
   --account-id <aws-account-id> \
   --output json
 ```
@@ -171,14 +170,14 @@ This requires the `integration` build tag and external tools installed on
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--scenarios` | required | Directory containing scenario subdirectories, each with a `manifest.json` and IAM export JSON |
-| `--tools` | `accessgraph` | Comma-separated list: `accessgraph`, `prowler`, `pmapper`, `checkov`, `steampipe`, `cloudsploit` |
+| `--tools` | `accessgraph` | Comma-separated list: `accessgraph`, `prowler`, `pmapper`, `checkov` |
 | `--output` | `terminal` | Output format: `terminal` or `json` |
 | `--account-id` | (empty) | AWS account ID of the test account; used by live-AWS fixture capture |
 
 ## Benchmark Reproduction
 
 The primary quantitative claim is a precision/recall comparison of AccessGraph
-against five open-source tools on all 31 IAMVulnerable scenarios. Two
+against three open-source tools on all 31 IAMVulnerable scenarios. Two
 reproduction paths are planned:
 
 ### Offline reproduction (no AWS account required)
@@ -195,7 +194,7 @@ deploying infrastructure. Fixture generation and checksums are pending.
 **Status: deferred -- not yet implemented.**
 
 `make reproduce` will automate the full benchmark: deploy IAMVulnerable to an
-AWS account, export IAM state, run all six tools, and produce the comparison
+AWS account, export IAM state, run all four tools, and produce the comparison
 report. This requires an AWS account and the external tools listed in
 [Prerequisites](#prerequisites). Estimated cost per run is under $5 USD.
 

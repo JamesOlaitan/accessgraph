@@ -37,7 +37,7 @@ func init() {
 	benchmarkCmd.Flags().StringVar(&benchmarkOpts.scenariosDir, "scenarios", "",
 		"directory containing IAMVulnerable scenario subdirectories (required)")
 	benchmarkCmd.Flags().StringVar(&benchmarkOpts.tools, "tools", "accessgraph",
-		`comma-separated list of tools: accessgraph, prowler, pmapper, checkov, steampipe, cloudsploit`)
+		`comma-separated list of tools: accessgraph, prowler, pmapper, checkov`)
 	benchmarkCmd.Flags().StringVar(&benchmarkOpts.output, "output", "terminal",
 		`output format: "terminal" or "json"`)
 	benchmarkCmd.Flags().StringVar(&benchmarkOpts.accountID, "account-id", "",

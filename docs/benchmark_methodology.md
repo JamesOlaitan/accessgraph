@@ -1,6 +1,6 @@
 # Benchmark Methodology
 
-This document is the formal specification that governs how AccessGraph is evaluated against Prowler, PMapper, Checkov, Steampipe, and CloudSploit on the IAMVulnerable dataset.
+This document is the formal specification that governs how AccessGraph is evaluated against Prowler, PMapper, and Checkov on the IAMVulnerable dataset.
 
 The `outputAdapter.parse()` implementation for each tool in `internal/benchmark/`
 matches this specification. Any deviation between code and this document
@@ -229,6 +229,18 @@ final classification and a one-sentence justification.
   full exploitation chain. Bishop Fox's IAMVulnerable taxonomy lists both under
   `direct_policy` → `simple`.
 
+### 1.3 Tool selection rationale
+
+This work benchmarks AccessGraph against three external open-source tools: Prowler, PMapper, and Checkov. These three were selected because they represent three meaningfully distinct detection paradigms relevant to the research claim:
+
+- **PMapper** (NCC Group): graph-based principal traversal. The most direct comparison for AccessGraph's BFS-based approach.
+- **Prowler**: per-policy compliance scanning. Represents the dominant CSPM detection paradigm.
+- **Checkov**: static analysis of Infrastructure-as-Code templates. Represents the shift-left IaC scanning paradigm.
+
+Two additional tools were initially considered but excluded after investigation: Steampipe and CloudSploit. Both tools require live AWS API access by design. Steampipe is a SQL data platform whose AWS plugin queries live cloud APIs through a connection layer; it does not support evaluation against offline IAM JSON files. CloudSploit's per-scenario `config.js` configures AWS credentials and region rather than data inputs. Neither tool supports the offline fixture-replay reproducibility model that this work commits to in Section 7.3.1, and both would require live AWS execution at every reproduction attempt by an artifact reviewer. They are therefore out of scope for this benchmark and may be revisited as a separate contribution under a live-AWS-only methodology.
+
+This scoping is a deliberate methodological choice: three well-validated tools that share AccessGraph's offline-evaluable property are preferred over a larger comparison set that mixes offline and live-only tools and complicates reproducibility.
+
 ---
 
 ## 2. Execution environment
@@ -237,12 +249,12 @@ All tools are run against **live AWS environments** deployed from the IAMVulnera
 Terraform configuration at the pinned commit. No offline JSON export is used as
 a substitute for live execution.
 
-**Rationale:** PMapper, Prowler, Steampipe, and CloudSploit all require live AWS
-API access to function correctly. Running them against static exports either
-produces zero output (Prowler, Steampipe) or partial output that does not
-reflect their actual detection capability. Using live environments ensures each
-tool is evaluated under the conditions it was designed for, making the comparison
-fair and the results reproducible by any researcher with AWS access.
+**Rationale:** PMapper and Prowler require live AWS API access to function
+correctly. Running them against static exports either produces zero output
+(Prowler) or partial output that does not reflect their actual detection
+capability. Using live environments ensures each tool is evaluated under the
+conditions it was designed for, making the comparison fair and the results
+reproducible by any researcher with AWS access.
 
 ### 2.1 AWS account setup
 
@@ -279,12 +291,12 @@ The deployment sequence for each scenario:
 1. Run `terraform apply` for the scenario's Terraform module
 2. Wait for all IAM resources to propagate (60-second sleep; IAM changes can
    take up to 60 seconds to be globally consistent)
-3. Run all six tools against the live account
+3. Run all four tools against the live account
 4. Record all raw outputs
 5. Run `terraform destroy` for the scenario's module
 6. Verify the account returns to baseline (no scenario IAM resources remain)
 
-**IAM propagation failure detection:** If a scenario produces a false negative (FN) for **all six tools** (including PMapper and AccessGraph), this likely indicates IAM propagation was incomplete at the 60-second mark. In this case, re-run the scenario with a 120-second propagation delay. If the second run produces the expected true positives (TPs), use the second-run results and record the propagation delay in the benchmark notes. If the second run also produces all-FN, the scenario ground truth should be investigated.
+**IAM propagation failure detection:** If a scenario produces a false negative (FN) for **all four tools** (including PMapper and AccessGraph), this likely indicates IAM propagation was incomplete at the 60-second mark. In this case, re-run the scenario with a 120-second propagation delay. If the second run produces the expected true positives (TPs), use the second-run results and record the propagation delay in the benchmark notes. If the second run also produces all-FN, the scenario ground truth should be investigated.
 
 **Do not deploy multiple scenarios simultaneously.** Concurrent IAM resources
 from different scenarios create cross-scenario detection opportunities that
@@ -295,7 +307,7 @@ invalidate per-scenario scoring.
 not an isolated sub-module; a full `terraform apply` of `privesc-paths` always
 deploys `privesc-sre-user`, `privesc-sre-role`, and `privesc-sre-group` alongside
 every scenario's resources. These shared resources carry admin-equivalent permissions
-(`iam:*`, `ec2:*`, `s3:*`) and will generate findings in all six tools during every
+(`iam:*`, `ec2:*`, `s3:*`) and will generate findings in all four tools during every
 scenario run. Under the matching criterion (Section 4.1), findings on
 `privesc-sre-*` principals do not score as TP for scenarios whose
 `ExpectedAttackPath` does not contain `privesc-sre-*` ARNs — they are irrelevant noise
@@ -359,35 +371,6 @@ checkov -d <scenarioDir> --framework cloudformation --output json
 - Output format: JSON written to stdout
 - Exit code: 1 indicates check failures were found (treated as success, not error); any other non-zero exit code is treated as a tool failure (`ErrToolFailed`)
 
-### 3.4 Steampipe
-
-```bash
-steampipe check aws_iam --input <iamFile> --output json
-```
-
-where `iamFile = filepath.Join(scenarioDir, "iam.json")`.
-
-- `steampipe check` runs the `aws_iam` benchmark against a local IAM data file
-- `--input` specifies the IAM JSON file for offline analysis
-- `--output json` produces JSON output on stdout
-- Uses `CombinedOutput()` (stderr and stdout merged)
-- Exit code: non-zero may indicate findings, not necessarily an error; only execution errors cause failure
-
-### 3.5 CloudSploit
-
-```bash
-cloudsploit --config <configFile> --json
-```
-
-where `configFile = filepath.Join(scenarioDir, "config.js")`.
-
-- Single invocation of the `cloudsploit` binary (not `node /opt/cloudsploit/index.js`)
-- No per-plugin loop; the tool runs all its checks in a single invocation
-- `--config` specifies a scenario-specific configuration file
-- `--json` produces JSON output on stdout
-- Uses `CombinedOutput()` (stderr and stdout merged)
-- Exit code: non-zero may indicate findings, not necessarily an error; only execution errors cause failure
-
 ---
 
 ## 4. Detection matching specification
@@ -403,7 +386,7 @@ The benchmark measures whether each tool **detects any element of the expected a
 
 **What TP means:** A tool receives TP for a scenario if its output contains any element of `ExpectedAttackPath` (the array of all path node ARNs for the scenario). The tool does not need to identify the specific ground-truth mechanism or the complete path. A match on any single node in the expected path is sufficient.
 
-**Rationale:** The research claim is that tools differ in multi-hop escalation detection and that no prior work has systematically measured this across tools on a common dataset. The TP criterion tests whether the tool recognizes any element of the attack path, which is the operationally meaningful question. Requiring full path matching would penalize tools that discover valid alternate paths and is not uniformly enforceable across all six tools (most do not emit action-level detail).
+**Rationale:** The research claim is that tools differ in multi-hop escalation detection and that no prior work has systematically measured this across tools on a common dataset. The TP criterion tests whether the tool recognizes any element of the attack path, which is the operationally meaningful question. Requiring full path matching would penalize tools that discover valid alternate paths and is not uniformly enforceable across all four tools (most do not emit action-level detail).
 
 **What TP does not mean:** A detection is not valid if the tool merely flags some other IAM entity in the environment that does not appear in `ExpectedAttackPath`. A tool that flags an unrelated resource does not receive TP.
 
@@ -414,11 +397,7 @@ The benchmark measures whether each tool **detects any element of the expected a
 | PMapper | `arn` in `paths[].nodes[]` JSON output | Exact ARN match against `ExpectedAttackPath` elements | PMapper emits node ARNs in escalation paths |
 | Prowler | `resource_arn` in JSON output array | Exact ARN match against `ExpectedAttackPath` elements (where `status="FAIL"`) | Prowler emits resource ARNs with FAIL/PASS status |
 | Checkov | `resource` in `results.failed_checks` JSON | Exact match against `ExpectedAttackPath` elements (where severity is HIGH/CRITICAL/empty) | Checkov emits resource labels in failed checks |
-| Steampipe | Raw stdout bytes | Substring match against `ExpectedAttackPath` elements | No JSON parsing; `containsAny()` checks if any path node appears in output |
-| CloudSploit | Raw stdout bytes | Substring match against `ExpectedAttackPath` elements | No JSON parsing; `containsAny()` checks if any path node appears in output |
 | AccessGraph | `path.ToResourceID` → ARN via `snapshot.Resources` | Exact ARN match against terminal (last) element of `ExpectedAttackPath` | In-process; maps internal resource IDs to ARNs |
-
-**Steampipe and CloudSploit raw byte matching:** These two tools use `containsAny(stdout, ExpectedAttackPath)`, which performs a raw substring search of the entire combined output (stdout + stderr) for any element of the expected attack path. No JSON parsing or field extraction is performed.
 
 **Role of `expected_escalation_actions`:** This field is not used in TP/FN classification for any tool. It is preserved in the scenario fixture for post-hoc analysis: researchers can inspect which mechanisms each tool actually detects versus the ground-truth mechanism. The field does not affect any metric computation.
 
@@ -536,36 +515,6 @@ discussed in the paper.
 
 ---
 
-**Steampipe**
-
-Detection uses raw byte matching on the combined output (stdout + stderr) from `steampipe check aws_iam --input <iamFile> --output json`.
-
-**TP:** `containsAny(stdout, ExpectedAttackPath)` returns true — that is, any element of `ExpectedAttackPath` appears as a substring anywhere in the raw output bytes. No JSON parsing is performed; no field extraction or filtering is applied.
-
-**FN:** No element of `ExpectedAttackPath` appears as a substring in the output.
-
-**FP:** Not classified by the external tool dispatch logic. See Section 5.3 for FPR limitations.
-
-**Known limitation:** The raw byte matching approach means any occurrence of an expected ARN anywhere in the output (including in metadata, error messages, or non-finding fields) would count as a detection. The raw byte matching approach is simpler but less precise than structured JSON parsing.
-
----
-
-**CloudSploit**
-
-Detection uses raw byte matching on the combined output (stdout + stderr) from `cloudsploit --config <configFile> --json`.
-
-**TP:** `containsAny(stdout, ExpectedAttackPath)` returns true — that is, any element of `ExpectedAttackPath` appears as a substring anywhere in the raw output bytes. No JSON parsing is performed; no field extraction, status filtering, or category filtering is applied. The same `containsAny` approach is used by the Steampipe adapter.
-
-**FN:** No element of `ExpectedAttackPath` appears as a substring in the output.
-
-**FP:** Not classified by the external tool dispatch logic. See Section 5.3 for FPR limitations.
-
-**Known limitation:** CloudSploit's IAM checks evaluate individual resource
-configurations, not privilege escalation paths. The raw byte matching approach
-has the same precision trade-off noted for Steampipe above.
-
----
-
 **AccessGraph**
 
 Detection is performed in-process by `classifyDetectionInternal()` in `pipeline.go`, which receives the blast-radius analysis results from `runAccessGraphOnScenario()`.
@@ -678,7 +627,7 @@ $$FPR(T) = \frac{FP(T)}{FP(T) + TN(T)}$$
 
 where the denominator is the number of true negative environments evaluated.
 
-**External tool FPR limitation:** In the current implementation, FPR is computed only for AccessGraph. External tools (Prowler, PMapper, Checkov, Steampipe, CloudSploit) are evaluated via `dispatch()`, which classifies results as TP or FN based on whether `ExpectedAttackPath` elements appear in the output. On TN environments where `ExpectedAttackPath` is empty, `Parse()` always returns false, producing `LabelFN` regardless of whether the tool flagged the environment. The result is that external tool FPR is not measured by this benchmark. The `false_positive_rate` table in benchmark JSON output contains zero values for external tools — these represent unmeasured FPR, not confirmed zero FPR.
+**External tool FPR limitation:** In the current implementation, FPR is computed only for AccessGraph. External tools (Prowler, PMapper, Checkov) are evaluated via `dispatch()`, which classifies results as TP or FN based on whether `ExpectedAttackPath` elements appear in the output. On TN environments where `ExpectedAttackPath` is empty, `Parse()` always returns false, producing `LabelFN` regardless of whether the tool flagged the environment. The result is that external tool FPR is not measured by this benchmark. The `false_positive_rate` table in benchmark JSON output contains zero values for external tools — these represent unmeasured FPR, not confirmed zero FPR.
 
 ---
 
@@ -804,7 +753,7 @@ go test \
 ./bin/accessgraph benchmark \
   --scenarios $(pwd)/iam-vulnerable \
   --account-id $AWS_ACCOUNT_ID \
-  --tools prowler,pmapper,checkov,steampipe,cloudsploit \
+  --tools prowler,pmapper,checkov \
   --output json \
   > results/comparison_report.json
 ```
@@ -812,8 +761,8 @@ go test \
 Expected wall-clock time: 4–6 hours (includes clone, Terraform deploy/destroy cycles for all 31 scenarios + 10 TN environments, and all tool invocations). AccessGraph and Checkov complete per
 scenario in under 5 seconds. PMapper graph creation takes 1–3 minutes per
 scenario. Prowler takes 2–5 minutes per scenario against a live account.
-Steampipe and CloudSploit take 1–3 minutes per scenario. The dominant cost
-is the sequential Terraform deploy/destroy cycles (~3 minutes each × 41 environments).
+The dominant cost is the sequential Terraform deploy/destroy cycles
+(~3 minutes each × 41 environments).
 
 ### 7.2 Verifying fixture integrity
 
@@ -918,18 +867,8 @@ Both modes share the same pipeline; only the post-run validation step differs.
    IAM resources between scenarios (e.g., due to failed teardown), PMapper
    runtime will increase. Section 2.3 step 6 is the mitigation.
 
-7. **Steampipe raw byte matching.** The Steampipe adapter uses `steampipe check aws_iam` with `--input` for offline analysis and applies raw byte substring matching (`containsAny`) on the combined output rather than structured JSON parsing. The approach means Steampipe detection results depend on whether expected ARNs appear anywhere in the output text, not on specific finding fields or status values.
-
-8. **Ground-truth path matching uses raw byte substring for some tools.** The
-   Steampipe and CloudSploit adapters use `containsAny()` to perform raw
-   substring matching on the entire combined output bytes. Substring matching introduces a
-   risk of false TP if an expected ARN appears anywhere in the output
-   (including metadata, error messages, or non-finding fields). The Prowler
-   adapter uses exact ARN matching on parsed JSON fields. The PMapper and
-   Checkov adapters also use exact matching on parsed JSON fields.
-
-9. **External tool false positive rate is not measured.** The dispatch logic
-   for external tools (Prowler, PMapper, Checkov, Steampipe, CloudSploit)
+7. **External tool false positive rate is not measured.** The dispatch logic
+   for external tools (Prowler, PMapper, Checkov)
    classifies results as TP (detected) or FN (not detected) only. On true
    negative environments, `ExpectedAttackPath` is empty and `Parse()` always
    returns false, producing `LabelFN` regardless of actual tool output. Only

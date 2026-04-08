@@ -24,7 +24,7 @@ System architecture specification for AccessGraph. Governs code structure, inter
 
 ## 1. Introduction
 
-This document is the system architecture specification for AccessGraph. It is intended for developers, reviewers, and evaluators who need to understand the system's structure, interfaces, and design rationale. AccessGraph is a graph-based, offline-first tool for detecting IAM privilege escalation paths and quantifying blast radius in AWS environments. It is benchmarked against five open-source cloud security posture management tools — Prowler, PMapper, Checkov, Steampipe, and CloudSploit — on the IAMVulnerable dataset. The document covers component architecture, layer contracts, interface specifications, the domain data model, the benchmark execution model, and the testing architecture. Two companion documents complete the specification: `benchmark_methodology.md` governs all benchmark decisions, and `findings_schema.md` governs all JSON output formats.
+This document is the system architecture specification for AccessGraph. It is intended for developers, reviewers, and evaluators who need to understand the system's structure, interfaces, and design rationale. AccessGraph is a graph-based, offline-first tool for detecting IAM privilege escalation paths and quantifying blast radius in AWS environments. It is benchmarked against three open-source cloud security posture management tools — Prowler, PMapper, and Checkov — on the IAMVulnerable dataset. The document covers component architecture, layer contracts, interface specifications, the domain data model, the benchmark execution model, and the testing architecture. Two companion documents complete the specification: `benchmark_methodology.md` governs all benchmark decisions, and `findings_schema.md` governs all JSON output formats.
 
 ## 2. Definitions
 
@@ -78,17 +78,15 @@ Vendoring (`go mod vendor`, `-mod=vendor` builds, CI vendor check) is planned bu
 
 ### Benchmark Execution Model
 
-The benchmark runs inside a **single Docker image** that co-installs Go, Prowler (Python 3.11), PMapper, Checkov, Steampipe v2 (SQL query mode; Powerpipe not required), Node.js, and CloudSploit. `benchmark.ToolConfig` is populated from environment variables set in the Dockerfile entrypoint — tool binary paths are never hardcoded. The Docker image is the canonical execution environment for `make benchmark` and `make benchmark-full`.
+The benchmark runs inside a **single Docker image** that co-installs Go, Prowler (Python 3.11), PMapper, and Checkov. `benchmark.ToolConfig` is populated from environment variables set in the Dockerfile entrypoint — tool binary paths are never hardcoded. The Docker image is the canonical execution environment for `make benchmark` and `make benchmark-full`.
 
-**Tool path environment variables:** Each `benchmark.ToolConfig` field is populated from a corresponding environment variable. The Dockerfile entrypoint must set all six:
+**Tool path environment variables:** Each `benchmark.ToolConfig` field is populated from a corresponding environment variable. The Dockerfile entrypoint must set all four:
 
 | `benchmark.ToolConfig` field | Environment variable | Docker default |
 |--------------------------|---------------------|----------------|
 | `Prowler` | `ACCESSGRAPH_PROWLER_PATH` | `/opt/venv-prowler/bin/prowler` |
 | `PMapper` | `ACCESSGRAPH_PMAPPER_PATH` | `/opt/venv-prowler/bin/pmapper` |
 | `Checkov` | `ACCESSGRAPH_CHECKOV_PATH` | `/opt/venv-checkov/bin/checkov` |
-| `Steampipe` | `ACCESSGRAPH_STEAMPIPE_PATH` | `/usr/local/bin/steampipe` |
-| `CloudSploit` | `ACCESSGRAPH_CLOUDSPLOIT_PATH` | `/opt/cloudsploit/index.js` |
 | `IAMVulnerableDir` | `ACCESSGRAPH_IAMVULNERABLE_DIR` | `/opt/iam-vulnerable` |
 
 `config.Load()` reads these environment variables; empty values are allowed only when the corresponding tool is not in the `--tools` flag list. `IAMVulnerableDir` is the root of the cloned IAMVulnerable repository, used by adapters to resolve tool-specific sub-paths (see Section 11).
@@ -383,7 +381,7 @@ These types appear in interface signatures and service return values but are not
 | Type | Definition | Used By |
 |------|-----------|---------|
 | `model.Node` | A graph vertex — either a Principal or Resource — with its ARN, kind, and snapshot-scoped ID | Used internally by `graph/bfs.go` during traversal; returned by the unexported `neighbors()` method on `*Engine`. Defined in `model/` rather than as an unexported type in `graph/` because `AttackPath.path_nodes` references node ARNs and a shared vertex type ensures consistent identity semantics across graph construction and path serialization. |
-| `model.ToolName` | Typed string constant for benchmark tool identity: `ToolAccessGraph`, `ToolProwler`, `ToolPMapper`, `ToolCheckov`, `ToolSteampipe`, `ToolCloudSploit` | `Runner.RunTool`, benchmark runner registry |
+| `model.ToolName` | Typed string constant for benchmark tool identity: `ToolAccessGraph`, `ToolProwler`, `ToolPMapper`, `ToolCheckov` | `Runner.RunTool`, benchmark runner registry |
 | `model.Report` | Unified output envelope wrapping `BlastRadiusReport`, `[]*Finding`, and optionally `*ComparisonReport` | `Renderer` interface — all render implementations take this type |
 | `model.DetectionLabel` | Typed string constant: `LabelTP`, `LabelFP`, `LabelFN`, `LabelTN`, `LabelTimeout` | `BenchmarkResult.DetectionLabel` — replaces the three-boolean schema |
 | `model.ChainLengthClass` | Typed string constant for scenario class: `ClassSimple`, `ClassTwoHop`, `ClassMultiHop`, `ClassNone` | `BenchmarkResult.ChainLengthClass`, `AttackPath.ChainLengthClass` — never a raw string. `ClassNone` is used only for TN environments; the aggregator must skip `ClassNone` rows when computing per-class recall. |
@@ -485,8 +483,6 @@ flowchart TD
  PROWLER["Prowler"]
  PMAPPER["PMapper"]
  CHECKOV["Checkov"]
- STEAMPIPE["Steampipe"]
- CLOUDSPLOIT["CloudSploit"]
  end
 
  IAM_JSON --> CMD_INGEST
@@ -514,8 +510,6 @@ flowchart TD
  PROWLER --> BENCHMARK_SVC
  PMAPPER --> BENCHMARK_SVC
  CHECKOV --> BENCHMARK_SVC
- STEAMPIPE --> BENCHMARK_SVC
- CLOUDSPLOIT --> BENCHMARK_SVC
 
  PARSER --> MODEL
  ANALYZER --> MODEL
@@ -604,9 +598,7 @@ accessgraph/
 │ │ ├── accessgraph_test.go ← Tests for AccessGraph self-evaluation (lives in internal/, not tests/)
 │ │ ├── prowler.go ← Prowler adapter: invocation + output normalization
 │ │ ├── pmapper.go ← PMapper adapter: invocation + output normalization
-│ │ ├── checkov.go ← Checkov adapter: invocation + output normalization
-│ │ ├── steampipe.go ← Steampipe adapter: invocation + output normalization
-│ │ └── cloudsploit.go ← CloudSploit adapter: invocation + output normalization
+│ │ └── checkov.go ← Checkov adapter: invocation + output normalization
 │ │
 │ ├── report/ ← Layer 2: Output formatting (I/O-blind)
 │ │ ├── renderer.go ← Renderer interface + RendererRegistry
@@ -655,9 +647,7 @@ accessgraph/
 │ └── tool_outputs/ ← Canonical raw tool outputs for offline adapter testing
 │ ├── prowler/
 │ ├── pmapper/
-│ ├── checkov/
-│ ├── steampipe/
-│ └── cloudsploit/
+│ └── checkov/
 │
 ├── tests/ ← All test files (mirrors internal/ structure)
 │ ├── parser/
@@ -694,7 +684,7 @@ accessgraph/
 │ ├── audit.sh ← Architectural fitness checks (layer deps, interfaces, MetricFloat, JSON tags)
 │ └── run_iamvulnerable.sh ← Automates benchmark against all scenarios
 │
-├── Dockerfile ← Single benchmark image: Go + Python 3.11 (two venvs) + Steampipe v2 + Node.js + CloudSploit
+├── Dockerfile ← Single benchmark image: Go + Python 3.11 (two venvs)
 ├── docker-compose.yml ← (see Section 15)
 ├── requirements-benchmark.txt ← Pinned Python deps for benchmark execution (Prowler==5.20.0, Checkov==3.2.509)
 ├── .github/
@@ -942,14 +932,14 @@ type FindingEvaluator interface {
 // Runner executes one tool against one IAMVulnerable scenario
 // and returns a structured result for comparison analysis.
 //
-// Each tool (AccessGraph, Prowler, PMapper, Checkov, Steampipe, CloudSploit)
+// Each tool (AccessGraph, Prowler, PMapper, Checkov)
 // has its own implementation. Tool selection is done via a registry map, not
 // a switch statement. The registry pattern avoids a brittle switch and makes
 // adding a new tool a single-file change with no modification to existing code.
 //
 // Three execution patterns exist:
 //
-// Pattern A — Single-command tools (Prowler, Checkov, Steampipe, CloudSploit):
+// Pattern A — Single-command tools (Prowler, Checkov):
 // Implement RunTool by delegating to baseRunner.runScenario, passing self as
 // the outputAdapter. runScenario owns timeout enforcement, subprocess execution,
 // and stdout/stderr capture. The concrete runner supplies only buildCmd and parse.
@@ -1276,12 +1266,10 @@ type ToolConfig struct {
  ProwlerPath string
  PMapperPath string
  CheckovPath string
- SteampipePath string
- CloudSploitPath string
 }
 ```
 
-Default behavior: empty strings default to bare binary names (`"prowler"`, `"pmapper"`, `"checkov"`, `"steampipe"`, `"cloudsploit"`) resolved via PATH in `newRunner()`. No environment variables are used — fields are set programmatically.
+Default behavior: empty strings default to bare binary names (`"prowler"`, `"pmapper"`, `"checkov"`) resolved via PATH in `newRunner()`. No environment variables are used — fields are set programmatically.
 
 `ToolConfig.BinaryPathFor(tool model.ToolName) string` returns the configured path for the given tool via a switch on `model.ToolName`. If a path is empty or the binary is not executable, `RunTool` returns `ErrToolNotFound` before attempting invocation.
 
@@ -1303,14 +1291,13 @@ Output capture is handled by each adapter's `Invoke()` method, which returns `[]
 
 ### Output Directory Cleanup
 
-Tools that write output to files rather than stdout (Prowler writes to `/tmp/prowler-output/`, CloudSploit writes to `/tmp/cloudsploit-output.json`) leave stale output between scenario runs. If the adapter reads from these paths without cleanup, scenario B may consume findings from scenario A, producing incorrect detection labels (typically inflated TP counts).
+Tools that write output to files rather than stdout (Prowler writes to `/tmp/prowler-output/`) leave stale output between scenario runs. If the adapter reads from these paths without cleanup, scenario B may consume findings from scenario A, producing incorrect detection labels (typically inflated TP counts).
 
 **Requirement:** Before each tool invocation, the adapter must delete any pre-existing output files at the tool's configured output path. This cleanup is the adapter's responsibility because the output path is tool-specific.
 
 - Prowler: `rm -rf /tmp/prowler-output/*` before invocation
-- CloudSploit: `rm -f /tmp/cloudsploit-output.json` before invocation
 
-Adapters for tools that write only to stdout (PMapper, Checkov, Steampipe, AccessGraph) do not require cleanup.
+Adapters for tools that write only to stdout (PMapper, Checkov, AccessGraph) do not require cleanup.
 
 ### Aggregated Result Types
 
@@ -1400,8 +1387,6 @@ Tools use exit codes differently. The following behavior is required:
 | Prowler | Findings were detected (not an error) | Parse stdout normally |
 | Checkov | Findings were detected (not an error) | Parse stdout normally |
 | PMapper | Actual error | Return wrapped error |
-| Steampipe | Depends on query | Parse stdout; non-zero is not automatically a miss |
-| CloudSploit | Findings were detected | Parse stdout normally |
 
 Exit code semantics must be documented in each adapter file's package comment, not inferred silently.
 
@@ -1733,7 +1718,7 @@ The following items are specified in this document but not yet implemented. They
 
 3. **Fixture directory** (`fixtures/iamvulnerable/`). Pre-captured IAM environment snapshots for the 31 IAMVulnerable scenarios and TN environments, plus canonical tool output files in `fixtures/tool_outputs/` for offline adapter testing and benchmark reproduction.
 
-4. **Dockerfile.** Single benchmark image co-installing Go, two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov), Steampipe v2, Node.js, and CloudSploit. Built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
+4. **Dockerfile.** Single benchmark image co-installing Go and two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov). Built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
 
 5. **Docker compose configuration** (`docker-compose.yml`). Local development configuration for starting tool dependency containers interactively.
 

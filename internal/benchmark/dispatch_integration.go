@@ -16,11 +16,9 @@ import (
 // Adding a new tool requires one new entry here and one new adapter file.
 // No other file changes.
 var adapterRegistry = map[model.ToolName]ToolAdapter{
-	model.ToolProwler:     &prowlerAdapter{},
-	model.ToolPMapper:     &pmapperAdapter{},
-	model.ToolCheckov:     &checkovAdapter{},
-	model.ToolSteampipe:   &steampipeAdapter{},
-	model.ToolCloudSploit: &cloudsploitAdapter{},
+	model.ToolProwler: &prowlerAdapter{},
+	model.ToolPMapper: &pmapperAdapter{},
+	model.ToolCheckov: &checkovAdapter{},
 }
 
 // dispatch invokes the registered adapter for the given tool.

@@ -207,10 +207,10 @@ aggregated tables are derived.
 | `result_id` | string | SHA-256 (truncated to 32 hex chars) of `json.Marshal([]any{run_id, scenario_id, tool_name})`. Structured serialization prevents field-boundary collisions. |
 | `run_id` | string | UUIDv4 FK to the enclosing benchmark run. Matches `run_id` in the top-level benchmark report object. |
 | `scenario_id` | string | Canonical scenario identifier. For vulnerable scenarios: the full Terraform directory name (e.g., `privesc1-CreateNewPolicyVersion`). For true negative environments: `tn-clean-NNN` (e.g., `tn-clean-001`). See `benchmark_methodology.md §4.2` for the authoritative identity table. |
-| `tool_name` | string | `accessgraph`, `prowler`, `pmapper`, `checkov`, `steampipe`, `cloudsploit` |
+| `tool_name` | string | `accessgraph`, `prowler`, `pmapper`, `checkov` |
 | `detection_label` | string | `TP`, `FP`, `FN`, `TN`, or `TIMEOUT` — exactly one per result |
 | `timeout_kind` | string | `none`, `deadline`, or `infrastructure`. Always `none` when `detection_label` is not `TIMEOUT`. When `TIMEOUT`: `deadline` means the tool did not exit within the 5-minute per-scenario deadline (subprocess was killed); `infrastructure` means the tool exited non-zero due to an environmental failure classified by the adapter per the per-tool exit code table in ARCHITECTURE.md §11 (External Tool Invocation Contract). Both kinds are excluded from precision/recall identically; the distinction is preserved for post-hoc analysis and rerun decisions. |
-| `detection_latency_ms` | integer | Wall-clock milliseconds from tool invocation start to completion. For external tools: from `exec.Command.Start()` to process exit or kill, plus file-read time for Prowler/CloudSploit. For AccessGraph: from `parser.ParseAWSIAM()` start to `analyzer.Analyze()` completion. This value is not comparable across tools; see `benchmark_methodology.md §3` for the cross-tool latency caveat. |
+| `detection_latency_ms` | integer | Wall-clock milliseconds from tool invocation start to completion. For external tools: from `exec.Command.Start()` to process exit or kill, plus file-read time for Prowler. For AccessGraph: from `parser.ParseAWSIAM()` start to `analyzer.Analyze()` completion. This value is not comparable across tools; see `benchmark_methodology.md §3` for the cross-tool latency caveat. |
 | `chain_length_class` | string | `simple`, `two_hop`, `multi_hop`, or `none`. In `BenchmarkResult`, always copied from the scenario fixture ground-truth — never derived from `hop_count` at runtime. The value `none` is used exclusively for true negative environments (`is_true_negative == true`); the aggregator must skip `none` rows when computing per-class recall. The hop-count derivation rule applies only to `AttackPath` objects in the analysis report (Section 1.2). |
 | `classification_override` | string (DetectionLabel) | Non-empty when a human reviewer has overridden the auto-assigned detection label. Contains the overriding `DetectionLabel` value (`TP`, `FP`, `FN`, `TN`, or `TIMEOUT`). Empty string (omitted from JSON via `omitempty`) when no override exists. |
 | `is_true_negative` | boolean | `true` when this result is from a true negative (clean) environment, `false` for vulnerable scenarios. Copied from the scenario fixture. Enables consumers to determine scenario type without cross-referencing fixture data — especially useful for `TIMEOUT` results where `detection_label` alone is ambiguous. |
@@ -256,9 +256,7 @@ recall varies by chain-length class across tools with different architectures.
     },
     "pmapper": { ... },
     "prowler": { ... },
-    "checkov": { ... },
-    "steampipe": { ... },
-    "cloudsploit": { ... }
+    "checkov": { ... }
   }
 }
 ```
@@ -300,9 +298,7 @@ The `by_tool` object contains aggregated metrics per tool across all chain-lengt
     },
     "pmapper": { ... },
     "prowler": { ... },
-    "checkov": { ... },
-    "steampipe": { ... },
-    "cloudsploit": { ... }
+    "checkov": { ... }
   }
 }
 ```

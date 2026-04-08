@@ -70,7 +70,34 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   the correct string `DetectionLabel` semantics; only the comment was
   out of date.
 
+### Removed
+- Steampipe and CloudSploit dropped from the benchmark.
+  Both adapters were authored with the assumption that the tools support offline-evaluation
+  contracts: Steampipe v2 has no `--input` flag for offline IAM JSON
+  evaluation and the `aws_iam` benchmark name does not exist in the
+  steampipe-mod-aws-compliance v0.x or v1.x mod; CloudSploit's per-scenario
+  `config.js` configures AWS credentials and region, not data inputs. Both
+  tools require live AWS API access by design and are architecturally
+  incompatible with the offline fixture-replay reproducibility model
+  documented in Section 7.3.1. Removed: `internal/benchmark/steampipe.go`,
+  `internal/benchmark/cloudsploit.go`, corresponding adapter test cases,
+  `SteampipePath` and `CloudSploitPath` fields from `ToolConfig`, the
+  `--tools` flag entries, and the `docs/benchmark_methodology.md` Section 3.4
+  and Section 3.5 subsections plus their corresponding Section 4 detection-matching
+  subsections. The benchmark now covers three external tools (Prowler, PMapper,
+  Checkov) representing three distinct detection paradigms (per-policy
+  compliance scanning, graph-based principal traversal, and static IaC
+  analysis). See `docs/benchmark_methodology.md` Section 1.3 (Tool selection
+  rationale) for the full scoping rationale.
+
 ### Fixed
+- `docs/benchmark_methodology.md` Section 3.4, Section 3.5, and Section 4.1
+  footnote: the pre-existing claim that the Steampipe and CloudSploit
+  adapters used `CombinedOutput()` was incorrect. Both adapters actually
+  captured stdout and stderr into separate `bytes.Buffer` variables, the
+  same pattern used by the remaining three adapters (Prowler, PMapper,
+  Checkov). The incorrect prose has been removed along with the dropped
+  tool sections.
 - `docs/ARCHITECTURE.md` Benchmark Execution Model section had several factual errors corrected: Checkov was incorrectly documented as targeting Python 3.14 (Checkov supports Python 3.9-3.13 inclusive); the rationale for the two-venv split was incorrectly attributed to Python 3.14 runtime incompatibility (the actual cause is the pydantic v1/v2 dependency conflict between Prowler and Checkov); both venvs now correctly target Python 3.11. The Docker base image recommendation was changed from `golang:1.26-alpine` to `golang:1.26-bookworm` because Checkov's official docs warn against Alpine for C extension reasons. The Dockerfile was added to the file tree and to the Planned Extensions section (it was previously missing entirely). A Prowler version pinning rationale paragraph was added explaining why this work pins 5.20.0 and does not bump to 5.21+ despite their availability. No code, test, or other doc changed.
 - `docs/benchmark_methodology.md` §7.1 reproduction example
   referenced `--account-id` (which did not exist) and a

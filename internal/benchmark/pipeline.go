@@ -357,8 +357,6 @@ func ParseToolList(raw string) []model.ToolName {
 		string(model.ToolProwler):     model.ToolProwler,
 		string(model.ToolPMapper):     model.ToolPMapper,
 		string(model.ToolCheckov):     model.ToolCheckov,
-		string(model.ToolSteampipe):   model.ToolSteampipe,
-		string(model.ToolCloudSploit): model.ToolCloudSploit,
 	}
 	seen := make(map[model.ToolName]bool)
 	var result []model.ToolName

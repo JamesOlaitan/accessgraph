@@ -24,12 +24,6 @@ const (
 
 	// ToolCheckov identifies the Checkov infrastructure-as-code scanner.
 	ToolCheckov ToolName = "checkov"
-
-	// ToolSteampipe identifies the Steampipe cloud query tool.
-	ToolSteampipe ToolName = "steampipe"
-
-	// ToolCloudSploit identifies the CloudSploit cloud security scanner.
-	ToolCloudSploit ToolName = "cloudsploit"
 )
 
 // ChainLengthClass classifies an IAMVulnerable scenario by the number of

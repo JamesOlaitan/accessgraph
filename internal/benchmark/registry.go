@@ -75,8 +75,6 @@ func NewScenarioRegistry(cfg ToolConfig, scenarioDirFn func(*model.Scenario) str
 		model.ToolProwler,
 		model.ToolPMapper,
 		model.ToolCheckov,
-		model.ToolSteampipe,
-		model.ToolCloudSploit,
 	}
 	registry := make(map[model.ToolName]ScenarioRunner, len(tools))
 	for _, tn := range tools {
