@@ -8,6 +8,19 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `terraform/scanner-role/` module: Terraform infrastructure for the
+  `AccessGraphBenchmarkScanner` IAM role per
+  `docs/benchmark_methodology.md §2.2`. Attaches AWS managed policies
+  `ReadOnlyAccess` and `SecurityAudit`. Trust policy is parameterized via
+  `trust_principal_arn` variable (default: deploying principal via
+  `aws_caller_identity`). `max_session_duration` is set to 28800 seconds
+  (8 hours) to accommodate the 4-6 hour wall-clock benchmark runs documented
+  in `docs/benchmark_methodology.md §7.1` with a 2-hour buffer.
+- `terraform/scanner-role/.terraform.lock.hcl`: dependency lock file with
+  cross-platform hashes (linux_amd64, darwin_arm64, darwin_amd64) for
+  reproducible provider installation across reviewer environments.
+- `terraform/README.md`: top-level orientation for the Terraform
+  infrastructure directory.
 - `fpr_measured` boolean field on `FalsePositiveRate` in benchmark
   output. Distinguishes measured FPR (currently only AccessGraph)
   from unmeasured FPR on external tools whose output adapters do

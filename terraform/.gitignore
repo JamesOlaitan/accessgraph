@@ -1,0 +1,19 @@
+# Terraform provider cache and state.
+**/.terraform/
+
+# Local state files — modules in this repo use local state only.
+*.tfstate
+*.tfstate.backup
+
+# Override files are local only.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Sensitive variable files.
+*.tfvars
+*.tfvars.json
+
+# Generated Lambda deployment packages (archive_file output).
+lambda_handler.zip
