@@ -1,0 +1,40 @@
+# Build artifacts
+bin/
+*.test
+*.out
+coverage.txt
+
+# Local state
+.git/
+.github/
+.claude/
+.cursor/
+.vscode/
+.idea/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+accessgraph.db
+
+# Existing fixtures (not yet captured, but excluded
+# so build context stays small once they exist)
+fixtures/
+
+# Terraform state
+**/.terraform/
+**/terraform.tfstate*
+**/.terraform.lock.hcl
+
+# Wiki and dev scratchpads
+wiki/
+raw/
+dev/
+
+# Output dirs
+results/
+reports/
+
+# macOS / IDE
+.DS_Store

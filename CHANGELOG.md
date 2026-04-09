@@ -48,8 +48,45 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   live-AWS fixture capture; allows the benchmark binary
   to be invoked against any AWS test account without relying on
   ambient credentials' caller identity.
+- `Dockerfile`: single benchmark image co-installing Go, two isolated
+  Python 3.11 virtual environments (`/opt/venv-prowler` for
+  Prowler + PMapper, `/opt/venv-checkov` for Checkov), the AccessGraph
+  binary built from source, and IAMVulnerable cloned at the pinned
+  commit `0f298666f9b7cfa01488b86912afdb211773188a`. Built from
+  `golang:1.26-bookworm@sha256:4f4ab2c90005e7e63cb631f0b4427f05422f241622ee3ec4727cc5febbf83e34`
+  with a pinned digest. Entrypoint sets the four `ACCESSGRAPH_*`
+  environment variables. The image is fully self-contained:
+  `docker run accessgraph-benchmark` produces the canonical benchmark
+  execution environment with no additional setup required. Includes a
+  one-line mechanical patch to PMapper 1.1.5's
+  `principalmapper/util/case_insensitive_dict.py` to fix a Python 3.10+
+  incompatibility (the `collections.Mapping` alias was removed in
+  Python 3.10 and PMapper has not shipped a fix); the patch rewrites
+  the broken import to use `collections.abc` and is verified at build
+  time by re-importing the affected module. See
+  `docs/benchmark_methodology.md §3.1` for the methodology-level
+  documentation.
+- `requirements-prowler.txt`: pinned Python dependencies for the
+  Prowler venv (`prowler==5.20.0`, `principalmapper==1.1.5`).
+- `requirements-checkov.txt`: pinned Python dependencies for the
+  Checkov venv (`checkov==3.2.509`).
+- `docker-compose.yml`: local development convenience wrapper for the
+  benchmark image. Per `docs/ARCHITECTURE.md`, this file is NOT the
+  canonical benchmark execution environment.
+- `.dockerignore`: build context exclusions to keep image builds
+  reproducible and avoid copying local state, secrets, fixtures, or
+  terraform state into the image.
+- Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `docs/ARCHITECTURE.md` Dependency Pinning section: replaced the
+  `<digest>` placeholder for `golang:1.26-bookworm` with the actual
+  sha256 digest pinned in `Dockerfile`.
+- `docs/benchmark_methodology.md` §3.1 (PMapper): added Python 3.10+
+  compatibility patch documentation describing the one-line mechanical
+  `sed` patch, the upstream issue references (nccgroup/PMapper#130,
+  #131, #140), the full codebase audit results, and the rationale for
+  choosing the patch over a Python 3.9 downgrade.
 - `docs/benchmark_methodology.md` §5.2 ("Count") rationale
   strengthened. The previous prose justified n=10 as
   "sufficient... though the small n limits statistical
@@ -71,6 +108,12 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   out of date.
 
 ### Removed
+- `requirements-benchmark.txt`: orphan dependency manifest from a prior
+  iteration, removed because it is no longer referenced by the Dockerfile
+  after the introduction of split `requirements-prowler.txt` and
+  `requirements-checkov.txt` files in this commit. The
+  `docs/ARCHITECTURE.md` file tree was also updated to reference the new
+  split files.
 - Steampipe and CloudSploit dropped from the benchmark.
   Both adapters were authored with the assumption that the tools support offline-evaluation
   contracts: Steampipe v2 has no `--input` flag for offline IAM JSON
@@ -109,3 +152,18 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   taxonomy-override prose; the schema doc had been rewritten to
   string DetectionLabel reviewer-override semantics. Synced the
   methodology doc to match the schema doc as the canonical source.
+- `docs/ARCHITECTURE.md` "Python environment note" paragraph in the
+  Benchmark Execution Model section: corrected the rationale for the
+  two-venv design. The previously committed text claimed the two venvs
+  were isolated because Prowler pins pydantic v1 and Checkov pulls in
+  pydantic v2 transitively. This claim was incorrect for the pinned
+  versions. Prowler 5.20.0 uses pydantic v2 (the v1 dependency was a
+  Prowler 4.x property, confirmed by upstream issue
+  prowler-cloud/prowler#5518). Both Prowler 5.20.0 and Checkov 3.2.509
+  use pydantic v2. The actual reason the two venvs cannot be merged is
+  that Prowler 5.20.0 pins `boto3==1.40.61` and Checkov 3.2.509 pins
+  `boto3==1.35.49`, and these exact pins are irreconcilable. Empirically
+  verified by a single-venv `pip install` resolution attempt that fails
+  with the conflicting-dependencies error. The rationale has been
+  corrected in `docs/ARCHITECTURE.md`, the `Dockerfile` comments,
+  `requirements-prowler.txt`, and `requirements-checkov.txt`.

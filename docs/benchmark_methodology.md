@@ -341,6 +341,14 @@ pmapper --input-dir <scenarioDir> analysis --output json
 - Exit code: non-zero on either step is treated as failure (`ErrToolFailed`)
 - The `--output json` flag is required; text output is not machine-parseable
 
+**Python 3.10+ compatibility patch:** PMapper 1.1.5 (released January 2022, the latest published version on PyPI) is incompatible with Python 3.10 and later because `principalmapper/util/case_insensitive_dict.py:34` imports `Mapping` and `MutableMapping` from the `collections` module rather than `collections.abc`. The `collections` aliases for these abstract base classes were deprecated in Python 3.3 and removed in Python 3.10. The PMapper maintainer has not shipped a fix; upstream issues nccgroup/PMapper#130, #131, and #140 (the latter from November 2023) all document the same problem and remain open. PMapper's PyPI classifiers list Python 3.5 through 3.9 only.
+
+This benchmark applies a one-line mechanical patch to the installed PMapper source inside the Docker image, rewriting the broken import to source `Mapping` and `MutableMapping` from `collections.abc` (the canonical Python 3.10+ form). The patch is applied via `sed` in the Dockerfile during the Prowler venv build step and is verified post-application by re-importing `CaseInsensitiveDict` in a Python sub-process. The patch does not modify PMapper's analysis logic, graph construction, BFS traversal, query interface, or any detection-relevant code path. `CaseInsensitiveDict` is an internal helper class used for IAM condition key case-insensitive matching; the patch only changes where the abstract base classes are imported from, not their behavior.
+
+An audit of the entire PMapper 1.1.5 codebase confirmed this is the only Python 3.10+ incompatibility present. The audit searched for: removed `collections` aliases (3.10), removed `inspect.getargspec` (3.11), removed `asyncio.coroutine` decorator (3.11), removed `imp` module (3.12), removed `distutils` (3.12), and deprecated `datetime.utcnow` (3.12). Only the single `case_insensitive_dict.py` import was found. No other patches are required for PMapper 1.1.5 to function correctly under Python 3.11.
+
+This patch is documented as a known modification to the system under test for artifact-evaluation. The alternative considered was downgrading the Prowler venv to Python 3.9 (the highest version PMapper officially supports), which would have required either a separate Python 3.9 installation in the Docker image or the use of `uv` to provision Python 3.9 alongside the system Python 3.11. The one-line patch was chosen because it is smaller in scope, fully audited, and does not introduce additional Python runtime version variation across the benchmark image.
+
 ### 3.2 Prowler
 
 ```bash

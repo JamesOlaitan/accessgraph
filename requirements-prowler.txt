@@ -1,0 +1,13 @@
+# Pinned Python dependencies for the Prowler venv.
+# Prowler 5.20.0 pins boto3==1.40.61, which conflicts
+# with Checkov's boto3==1.35.49 pin. The two tools must
+# therefore live in separate virtual environments. See
+# the Dockerfile comments and
+# docs/ARCHITECTURE.md "Python environment note" for
+# full rationale.
+#
+# PMapper 1.1.5 has no boto3 or pydantic constraints
+# and is placed in this venv as a matter of convention,
+# not necessity.
+prowler==5.20.0
+principalmapper==1.1.5

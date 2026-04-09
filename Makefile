@@ -7,7 +7,7 @@ BIN_DIR  := bin
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS  := -ldflags "-X $(MODULE)/cmd/accessgraph/commands.Version=$(VERSION)"
 
-.PHONY: all build test test-integration lint fmt vet clean demo tidy audit
+.PHONY: all build test test-integration lint fmt vet clean demo tidy audit docker-build docker-up docker-down
 
 all: build
 
@@ -63,6 +63,15 @@ demo: build
 ## audit: Run architectural fitness checks (layer deps, interface assertions, MetricFloat, JSON tags).
 audit:
 	bash scripts/audit.sh
+
+docker-build:
+	docker build -t accessgraph-benchmark:dev .
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
 
 ## help: Print this message.
 help:

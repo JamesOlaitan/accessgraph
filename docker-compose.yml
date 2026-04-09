@@ -1,0 +1,26 @@
+# Local development convenience for the AccessGraph
+# benchmark image. NOT the canonical benchmark execution
+# environment — see docs/ARCHITECTURE.md "Benchmark
+# Execution Model" for the authoritative reference.
+#
+# Usage:
+#   docker compose build
+#   docker compose run --rm benchmark accessgraph --help
+#   docker compose run --rm benchmark accessgraph benchmark \
+#     --tools prowler,pmapper,checkov \
+#     --output /work/results.json
+
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: accessgraph-benchmark:dev
+    volumes:
+      # Mount results dir so output persists outside container
+      - ./results:/work/results
+    # Override entrypoint to allow arbitrary commands
+    # (default entrypoint is /usr/local/bin/accessgraph).
+    # Compose passes any arguments after `run benchmark`
+    # to the entrypoint.
+    working_dir: /work
