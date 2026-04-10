@@ -1395,7 +1395,7 @@ Exit code semantics must be documented in each adapter file's package comment, n
 
 Results are committed **per-scenario**, not in a single transaction spanning the full run. Rationale: the benchmark takes up to 2 hours; an all-or-nothing transaction loses all work on crash. Per-scenario commits make partial runs detectable and recoverable.
 
-A `BENCHMARK_RUN` row is written before any `BENCHMARK_RESULT` rows and serves as the run header. A partial run is detectable by comparing `len(LoadBenchmarkResults(runID))` against the expected count (6 tools × vulnerable scenarios + 6 tools × TN environments). The `vulnerable_scenarios_evaluated` field in `by_tool` reflects the actual count of vulnerable scenario results per tool, not the expected count.
+A `BENCHMARK_RUN` row is written before any `BENCHMARK_RESULT` rows and serves as the run header. A partial run is detectable by comparing `len(LoadBenchmarkResults(runID))` against the expected count (4 tools × vulnerable scenarios + 4 tools × TN environments). The `vulnerable_scenarios_evaluated` field in `by_tool` reflects the actual count of vulnerable scenario results per tool, not the expected count.
 
 ### Concurrency Model
 
@@ -1682,6 +1682,9 @@ The following BFS invariants must be verified with property-based tests using `p
 | `make clean` | Remove `bin/`, `*.test` files, and `coverage.txt` artifacts. | — |
 | `make demo` | Ingest the bundled sample IAM snapshot and run blast-radius analysis; works from a clean clone with no environment variables set. Depends on `build`. | Go only |
 | `make audit` | Run architectural fitness checks (layer deps, interface assertions, MetricFloat, JSON tags). | bash |
+| `make docker-build` | Build the benchmark Docker image. | Docker |
+| `make docker-up` | Start all tool dependency containers via docker-compose. | Docker |
+| `make docker-down` | Stop and remove containers. | Docker |
 | `make help` | Print all targets with one-line descriptions. | — |
 
 `make demo`, `make test`, and `make build` must work from a clean clone with only Go installed.
@@ -1694,11 +1697,8 @@ The following targets are specified but not yet implemented. They are needed for
 |--------|-------------|----------|
 | `make benchmark` | Run the full benchmark suite against golden fixtures. Prerequisite: `verify-fixtures`. | Go + Docker + fixtures |
 | `make benchmark-full` | Run the benchmark suite against real AWS. Prerequisite: `verify-fixtures`. | Go + Docker + AWS credentials + fixtures |
-| `make docker-build` | Build the benchmark Docker image. | Docker |
-| `make docker-up` | Start all tool dependency containers via docker-compose. | Docker |
-| `make docker-down` | Stop and remove containers. | Docker |
 | `make fixtures` | Re-generate golden fixtures from the pinned IAMVulnerable commit. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
-| `make capture-tool-outputs` | Deploy one representative IAMVulnerable scenario, run all six tools, and save stdout/stderr to `fixtures/tool_outputs/<tool>/`. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
+| `make capture-tool-outputs` | Deploy each IAMVulnerable scenario, run all four tools (AccessGraph, Prowler, PMapper, Checkov), and save the per-tool fixtures to `fixtures/iamvulnerable/<scenario>/<tool>/`. See `docs/benchmark_methodology.md` §7.0 for per-tool fixture types. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
 | `make verify-fixtures` | Run `sha256sum -c fixtures/iamvulnerable/CHECKSUMS`; fails loudly on any mismatch. Runs automatically as a prerequisite of `make benchmark` and `make benchmark-full`. | fixtures |
 | `make generate-checksums` | Generate `fixtures/iamvulnerable/CHECKSUMS` by computing SHA-256 hashes of all files under `fixtures/iamvulnerable/` and `fixtures/tool_outputs/`. Committed to git. Destructive: overwrites existing CHECKSUMS. Run after `make fixtures` or `make capture-tool-outputs`. | — |
 | `make reproduce-fixtures` | Offline reproduction path. Runs the full benchmark pipeline against golden fixtures and pre-captured tool outputs; writes output to `results/reproduction_fixtures_$(date +%Y%m%d).json`. Diffs key metrics against `docs/benchmark_methodology.md` Section 7.3. Exits non-zero on divergence. | Go + Docker + fixtures |
@@ -1719,13 +1719,13 @@ The following items are specified in this document but not yet implemented. They
 
 3. **Fixture directory** (`fixtures/iamvulnerable/`). Pre-captured IAM environment snapshots for the 31 IAMVulnerable scenarios and TN environments, plus canonical tool output files in `fixtures/tool_outputs/` for offline adapter testing and benchmark reproduction.
 
-4. **Dockerfile.** Single benchmark image co-installing Go and two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov). Built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
+4. **[DONE] Dockerfile.** Single benchmark image co-installing Go and two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov), built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
 
-5. **Docker compose configuration** (`docker-compose.yml`). Local development configuration for starting tool dependency containers interactively.
+5. **[DONE] Docker compose configuration** (`docker-compose.yml`). Local development configuration for the benchmark image.
 
 6. **Go performance benchmarks** (Go `testing.B`). BFS performance benchmarks at varying graph sizes to validate the O(V + E) complexity claim empirically. Needed before any wall-clock performance claims can be made.
 
-7. **Deferred Makefile targets.** Eleven targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `docker-build`, `docker-up`, `docker-down`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce-fixtures`, `reproduce`. See Section 14 for full descriptions and prerequisites.
+7. **Deferred Makefile targets.** Eight targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce-fixtures`, `reproduce`. (`docker-build`, `docker-up`, `docker-down` were added in commit 694ef29.) See Section 14 for full descriptions and prerequisites.
 
 8. **Vendoring.** The module will be vendored (`go mod vendor`). All builds — local, CI, and Docker — will use `go build -mod=vendor`. A CI vendor check (`go mod vendor && git diff --exit-code vendor/`) will fail the build if the vendor directory is out of sync with `go.mod`. The `make vendor` target will regenerate the vendor directory. `make verify-deps` will run `go mod verify` and the vendor diff check without building.
 

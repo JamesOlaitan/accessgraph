@@ -329,17 +329,36 @@ here is a benchmark defect.
 
 ### 3.1 PMapper
 
+PMapper is a graph-based IAM principal-traversal tool. Unlike the other external tools, PMapper has a two-step contract: graph creation requires live AWS API calls, but graph analysis can run offline against the locally-stored graph. This split is load-bearing for the benchmark's offline reproducibility model.
+
+**Step 1 -- graph creation (live AWS, capture-time only):**
+
 ```bash
-pmapper --input-dir <scenarioDir> graph create
-pmapper --input-dir <scenarioDir> analysis --output json
+pmapper --profile <profile> graph create
 ```
 
-- Two-step sequential invocation; `graph create` must complete before `analysis` is run
-- `--input-dir` specifies a local directory containing exported IAM data for offline analysis (no live AWS API calls)
-- **`graph create` must be re-run for every scenario.** PMapper builds a graph from the input directory's IAM state. The adapter calls `runPMapper()` which executes both commands sequentially per scenario. If `graph create` fails (non-zero exit), the entire scenario result is treated as a tool failure (`ErrToolFailed`).
-- Output format: JSON written to stdout from the `analysis` step
-- Exit code: non-zero on either step is treated as failure (`ErrToolFailed`)
-- The `--output json` flag is required; text output is not machine-parseable
+- Calls live AWS IAM APIs via boto3 to enumerate users, roles, groups, policies, and trust relationships
+- Stores the resulting graph in `$PMAPPER_STORAGE/<account-id>/` where `PMAPPER_STORAGE` defaults to `/root/.local/share/principalmapper` on Linux
+- Must be re-run for every scenario; PMapper does not have a per-scenario graph isolation mechanism, so the benchmark orchestration must set a unique `PMAPPER_STORAGE` per scenario or rotate the storage directory between scenarios
+- For development against LocalStack, use the `--localstack-endpoint http://localhost:4566` flag instead of `--profile`
+- For canonical capture, use a real AWS profile with `ReadOnlyAccess` and `SecurityAudit` permissions (the `AccessGraphBenchmarkScanner` IAM role from `terraform/scanner-role/`)
+- PMapper logs benign "Unable to search region" warnings for regions that LocalStack does not serve; these can be suppressed with `--include-regions us-east-1` when running against LocalStack but should not be used against live AWS
+
+**Step 2 -- graph analysis (offline):**
+
+```bash
+pmapper --account <account-id> analysis --output-type json
+```
+
+- Reads the previously-created graph from `$PMAPPER_STORAGE/<account-id>/`
+- No network access required
+- The analysis output flag is `--output-type` (NOT `--output`)
+- Output is JSON to stdout
+- The `--account` flag is REQUIRED in this step and selects which previously-created graph to analyze; it is NOT a live AWS account ID (live operations use `--profile` instead)
+
+**Fixture format:** PMapper's fixture is the entire `$PMAPPER_STORAGE/<account-id>/` directory tree containing the graph metadata, edge data, and policy cache. This directory is captured after a successful `pmapper graph create` against the deployed scenario and replayed at reproduction time by setting `PMAPPER_STORAGE` to point at the captured directory. The captured directory contains binary serialized graph data that PMapper writes via its own storage layer; the reproduction step does not parse it directly but instead invokes `pmapper analysis` against the loaded graph.
+
+**Reproducibility properties:** PMapper graph creation cannot be re-executed offline because it requires live AWS API calls. The reproduction model for PMapper is therefore: capture once against live AWS, replay `pmapper analysis` against the captured graph storage indefinitely. Reviewers running `make reproduce-fixtures` re-execute the analysis step against the committed graph storage fixtures; they do not re-execute graph creation.
 
 **Python 3.10+ compatibility patch:** PMapper 1.1.5 (released January 2022, the latest published version on PyPI) is incompatible with Python 3.10 and later because `principalmapper/util/case_insensitive_dict.py:34` imports `Mapping` and `MutableMapping` from the `collections` module rather than `collections.abc`. The `collections` aliases for these abstract base classes were deprecated in Python 3.3 and removed in Python 3.10. The PMapper maintainer has not shipped a fix; upstream issues nccgroup/PMapper#130, #131, and #140 (the latter from November 2023) all document the same problem and remain open. PMapper's PyPI classifiers list Python 3.5 through 3.9 only.
 
@@ -351,33 +370,48 @@ This patch is documented as a known modification to the system under test for ar
 
 ### 3.2 Prowler
 
+Prowler is a per-policy compliance scanner. Its `aws` provider performs live IAM evaluations via boto3 and has no offline input mode. Unlike PMapper, Prowler has no intermediate state that can be captured for offline replay of the binary itself.
+
+**Live invocation (capture-time only):**
+
 ```bash
 prowler aws \
-  --output-formats json \
-  --output-directory <tmpdir> \
-  --input-file <scenarioDir>
+  --profile <profile> \
+  --output-formats json-ocsf \
+  --output-directory <tmpdir>
 ```
 
+- Calls live AWS IAM APIs via boto3 to evaluate IAM configurations against Prowler's check suite
+- Output format is `json-ocsf` (NOT plain `json`); Prowler 5.20.0's `--output-formats` flag accepts `csv`, `json-asff`, `json-ocsf`, or `html`. The benchmark uses `json-ocsf` because it is the standard machine-readable output that contains finding structure with resource ARNs
 - `<tmpdir>` is created dynamically via `os.MkdirTemp` per invocation
-- `--input-file` specifies a local directory containing exported IAM data for offline analysis
-- No `--checks` filter is applied; Prowler runs its full check suite against the input
-- No `--no-banner` flag is used
-- Output format: plain JSON (not JSON-OCSF)
+- For development against LocalStack, set the standard boto3 environment variable `AWS_ENDPOINT_URL=http://localhost:4566` and use placeholder credentials (`AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`); Prowler honors `AWS_ENDPOINT_URL` natively because boto3 does
+- For canonical capture, use a real AWS profile with the `AccessGraphBenchmarkScanner` role's permissions (`ReadOnlyAccess` + `SecurityAudit`)
+- No `--checks` filter is applied; Prowler runs its full check suite
+- Prowler exit code 3 indicates findings were detected (success); exit code 0 indicates no findings (also success); any other non-zero exit code is a tool failure (`ErrToolFailed`)
 - Output reading: stdout is preferred; if stdout is empty, the adapter falls back to reading the first `.json` file from the tmpdir output directory via `readFirstJSONFile()`
-- Exit code: 3 indicates findings were detected (treated as success, not error); 0 indicates no findings; any other non-zero exit code is treated as a tool failure (`ErrToolFailed`)
+
+**Fixture format:** Prowler's fixture is the captured `json-ocsf` output file from a successful live run. The file is named `prowler-output-<account-id>-<timestamp>.ocsf.json` by Prowler. This file is committed as the Prowler fixture for that scenario.
+
+**Reproducibility properties:** Prowler cannot be re-executed offline. There is no `--input-file` flag, no `--input-dir` flag, and no other mechanism for feeding pre-exported IAM JSON to Prowler's AWS provider. The reproduction model for Prowler is therefore: capture Prowler's `json-ocsf` output once against live AWS, then re-parse that captured output through the benchmark's adapter at reproduction time without re-invoking Prowler. The captured output IS the canonical fixture; the adapter and metric-computation pipeline are what get exercised during reproduction, not Prowler itself.
+
+Many academic benchmarks separate "tool execution" from "results processing" exactly this way, and the AE Functional badge requires that the pipeline reproduces metrics from captured inputs, not that upstream tools are re-executable. But the methodology must be explicit about this property because it differs from AccessGraph and Checkov (which re-execute end-to-end during reproduction) and PMapper (which re-executes only its analysis step).
+
+**Prowler iac provider not used:** Prowler also has an `iac` subcommand that scans Terraform/CloudFormation source files locally. This subcommand IS offline-capable, but it performs static IaC misconfiguration scanning, not runtime IAM privilege evaluation. Using `prowler iac` would mean benchmarking a different code path than the `aws` provider that this work claims to benchmark, and would also collapse the "three distinct detection paradigms" framing in §1.3 because it would put Prowler in the same paradigm as Checkov. The benchmark therefore uses `prowler aws` exclusively.
 
 ### 3.3 Checkov
 
 ```bash
-checkov -d <scenarioDir> --framework cloudformation --output json
+checkov -d <scenarioDir> --framework terraform --output json
 ```
 
 - `-d` specifies the scenario directory containing the input files to scan
-- `--framework cloudformation` is used for scanning CloudFormation templates (not Terraform)
+- `--framework terraform` is used for scanning Terraform modules from the IAMVulnerable repo
 - No `--check` filter is applied; Checkov runs all checks for the specified framework
 - No `--compact` or `--quiet` flags are used
 - Output format: JSON written to stdout
 - Exit code: 1 indicates check failures were found (treated as success, not error); any other non-zero exit code is treated as a tool failure (`ErrToolFailed`)
+
+**Reproducibility properties:** Checkov scans local source files and requires no AWS access at any point. Its fixture is the IAMVulnerable repository pinned at commit `0f298666f9b7cfa01488b86912afdb211773188a`. The pinned IAMVulnerable source IS the fixture; no separate capture step is needed.
 
 ---
 
@@ -459,7 +493,7 @@ True negative example:
 
 **PMapper**
 
-Output field inspected: JSON output from `pmapper --input-dir <scenarioDir> analysis --output json`.
+Output field inspected: JSON output from `pmapper --account <account-id> analysis --output-type json`.
 
 The output is parsed into a `pmapperAnalysis` struct containing `Paths []pmapperPath`, where each `pmapperPath` has `Nodes []pmapperNode`, and each `pmapperNode` has an `ARN` string field.
 
@@ -500,7 +534,7 @@ exercised by this benchmark's invocation method.
 
 **Checkov**
 
-Output field inspected: JSON stdout from `checkov -d <scenarioDir> --framework cloudformation --output json`.
+Output field inspected: JSON stdout from `checkov -d <scenarioDir> --framework terraform --output json`.
 
 The output is parsed as a `checkovResult` struct containing `Results.FailedChecks`, where each failed check has `Resource string` and `Severity string` fields.
 
@@ -577,7 +611,7 @@ Each true negative environment contains:
 
 **TN validity is established structurally, not by tool output.** Each TN environment is accepted as valid based on manual audit of its Terraform source confirming that no IAM action from the escalation taxonomy is present. The structural validity of each TN environment is documented in the fixture metadata with the specific IAM actions present and absent (e.g., `"actions_present": ["s3:GetObject", "cloudwatch:GetMetricData"], "escalation_actions_absent": true"`).
 
-**Sanity check (not acceptance criterion):** After structural evaluation, both AccessGraph and PMapper (`pmapper --input-dir <scenarioDir> analysis --output json`) are run against each TN environment as a sanity check. If either tool reports an escalation path in a structurally evaluated TN environment, the discrepancy is investigated — the structural definition takes precedence, and the tool's false positive is documented. The tool check does not serve as the acceptance criterion because using evaluated tools to define their own ground truth creates circular reasoning.
+**Sanity check (not acceptance criterion):** After structural evaluation, both AccessGraph and PMapper (`pmapper --account <account-id> analysis --output-type json`) are run against each TN environment as a sanity check. If either tool reports an escalation path in a structurally evaluated TN environment, the discrepancy is investigated — the structural definition takes precedence, and the tool's false positive is documented. The tool check does not serve as the acceptance criterion because using evaluated tools to define their own ground truth creates circular reasoning.
 
 ### 5.2 Count
 
@@ -728,49 +762,48 @@ meaningful at n=9.
 
 ### 7.0 Reproduction paths
 
-Two reproduction targets exist, supporting different artifact-evaluation badges:
+The benchmark supports two reproduction targets, each with different requirements and AE-badge implications:
 
 | Target | What it verifies | Requires | Wall-clock | AE badge |
 |--------|-----------------|----------|------------|----------|
-| `make reproduce-fixtures` | Pipeline correctness: adapters, aggregation, and metric computation produce correct results from known inputs | Go + Docker (no AWS) | < 5 minutes | Artifacts Evaluated — Functional |
-| `make reproduce` | External validity: live tool invocations against real AWS produce the published numbers | Go + Docker + AWS credentials | 4–6 hours | Results Reproduced |
+| `make reproduce-fixtures` | Pipeline correctness against captured fixtures | Go + Docker (no AWS) | ~10 minutes | Artifacts Evaluated — Functional |
+| `make reproduce` | External validity via fresh live capture | Go + Docker + AWS credentials | 4-6 hours | Results Reproduced |
 
-**For artifact-evaluation reviewers:** Start with `make reproduce-fixtures`. It runs the full benchmark pipeline against golden fixtures and pre-captured tool outputs, verifying that every adapter's `parse()` logic, the aggregator, and the metric computation produce the expected precision/recall/CI values. No AWS account is needed. If this passes and you have AWS access, `make reproduce` re-runs everything live.
+**For artifact-evaluation reviewers:** Start with `make reproduce-fixtures`. It runs each tool's reproduction step against the committed fixtures and verifies the metric pipeline produces the expected output (per §7.3.1). No AWS account is needed.
+
+**Per-tool reproducibility properties:** The four tools have different fixture types and different reproduction semantics. This is a property of the upstream tools, not a design choice -- the benchmark cannot make Prowler re-executable offline because Prowler's AWS provider has no offline input mode.
+
+| Tool | Fixture type | Reproduction step |
+|------|--------------|-------------------|
+| AccessGraph | IAM JSON snapshot per scenario | Re-runs full pipeline (parse, graph, BFS, blast radius, OPA, score) end-to-end against the fixture |
+| Checkov | IAMVulnerable Terraform source pinned to commit `0f298666...` | Re-runs `checkov -d <fixture_dir> --framework terraform --output json` end-to-end against the pinned source |
+| PMapper | `$PMAPPER_STORAGE/<account-id>/` directory tree captured after live `graph create` | Re-runs `pmapper --account <id> analysis --output-type json` against the captured graph storage; does NOT re-run `graph create` |
+| Prowler | `json-ocsf` output file captured from live `prowler aws` run | Re-parses the captured `json-ocsf` file through the benchmark adapter and runs the metric pipeline; does NOT re-invoke Prowler |
+
+**The "captured-output-as-fixture" pattern (Prowler):** Some external tools cannot be re-executed offline because their evaluation logic requires live cloud APIs. For these tools, the canonical fixture is the captured tool output from a single live run, and reproduction verifies that the benchmark's adapter and metric computation produce the same numbers from the same captured input. This pattern is standard in academic benchmarks that incorporate tools whose execution is environment-bound. The trade-off is that the reviewer cannot independently verify Prowler would still produce the same output if re-run against the same scenario; they verify the pipeline correctness, not the tool determinism. Tool determinism is verified separately by `make reproduce`, which re-runs the live capture against fresh AWS deployments and confirms the new captures match the old captures within tolerance.
 
 ### 7.1 Reproduction from scratch (live AWS)
 
-```bash
-# 1. Clone IAMVulnerable at the pinned commit
-git clone https://github.com/BishopFox/iam-vulnerable.git
-git -C iam-vulnerable checkout 0f298666f9b7cfa01488b86912afdb211773188a
+Full live-AWS reproduction is the responsibility of the `make reproduce` target. The target wraps the orchestration workflow described below and is the recommended entry point for reviewers seeking the "Results Reproduced" AE badge.
 
-# 2. Set AWS credentials for the dedicated test account
-export AWS_PROFILE=accessgraph-benchmark
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+**Workflow per scenario** (executed by `make reproduce` for each of the 31 IAMVulnerable scenarios + 10 TN environments):
 
-# 3. Run the full benchmark suite (integration build tag required)
-go test \
-  -tags integration \
-  -count=1 \
-  -timeout 7200s \
-  -v \
-  ./tests/integration/... \
-  -args -iamvulnerable-dir=$(pwd)/iam-vulnerable
+1. `terraform apply` the scenario's Terraform module against a dedicated AWS test account, using the `AccessGraphBenchmarkScanner` role from `terraform/scanner-role/`
+2. Wait for IAM eventual consistency (Terraform's internal waits handle this)
+3. Export the resulting IAM state via the `accessgraph export-iam` subcommand for use as the AccessGraph and Checkov fixtures
+4. Run `pmapper graph create` against the deployed scenario; the resulting `$PMAPPER_STORAGE/<account-id>/` directory becomes the PMapper fixture for this scenario
+5. Run `prowler aws --output-formats json-ocsf` against the deployed scenario; the resulting `.ocsf.json` file becomes the Prowler fixture for this scenario
+6. Run `checkov -d <iamvulnerable_terraform_dir> --framework terraform` against the IAMVulnerable Terraform source (no live AWS interaction)
+7. `terraform destroy` the scenario
+8. Save all captured fixtures and tool outputs to `fixtures/iamvulnerable/<scenario-name>/`
 
-# 4. Or invoke the CLI benchmark directly
-./bin/accessgraph benchmark \
-  --scenarios $(pwd)/iam-vulnerable \
-  --account-id $AWS_ACCOUNT_ID \
-  --tools prowler,pmapper,checkov \
-  --output json \
-  > results/comparison_report.json
-```
+**Wall-clock estimate:** 4-6 hours total for the full 31 scenarios + 10 TN environments. Sequential Terraform `apply`/`destroy` cycles dominate (~3 minutes each x 41 environments = ~2 hours). PMapper graph creation adds 1-3 minutes per scenario. Prowler adds 2-5 minutes per scenario. AccessGraph and Checkov complete in seconds.
 
-Expected wall-clock time: 4–6 hours (includes clone, Terraform deploy/destroy cycles for all 31 scenarios + 10 TN environments, and all tool invocations). AccessGraph and Checkov complete per
-scenario in under 5 seconds. PMapper graph creation takes 1–3 minutes per
-scenario. Prowler takes 2–5 minutes per scenario against a live account.
-The dominant cost is the sequential Terraform deploy/destroy cycles
-(~3 minutes each × 41 environments).
+**AWS cost estimate:** Under $10 for a full run. IAMVulnerable scenarios deploy IAM resources only (no EC2, no S3, no compute). IAM has no per-resource hourly cost; the only AWS cost is API call volume which is well within the free tier for a single run.
+
+**Development environment (LocalStack):** For apparatus development and integration testing without AWS spend, LocalStack 3.8 (the last free community edition) is sufficient for all three live-AWS-requiring tools. PMapper accepts `--localstack-endpoint`; Prowler honors `AWS_ENDPOINT_URL`; Terraform's AWS provider accepts explicit `endpoints { iam = "..." }` blocks. LocalStack is the recommended development environment but is NOT suitable for a canonical capture because LocalStack's IAM fidelity is approximate: complex trust conditions, permission boundaries, and SCP interactions can behave subtly differently than real AWS. The canonical `make reproduce` target requires real AWS credentials.
+
+**Implementation status:** As of this commit, the `make reproduce` target is not yet implemented. The work tracked in §15 of ARCHITECTURE.md will implement it along with the IAM export tool, Terraform orchestration glue, and the remaining deferred Make targets. This section documents the intended workflow so that the implementation has a contract to satisfy.
 
 ### 7.2 Verifying fixture integrity
 
@@ -789,6 +822,8 @@ benchmark results derived from those fixtures.
 This section has two sub-sections: Section 7.3.1 for offline fixture-based reproduction and Section 7.3.2 for live-AWS reproduction. Section 7.3.1 must be populated before `make reproduce-fixtures` can be implemented (it is the oracle for that target). Section 7.3.2 must be populated before paper submission.
 
 #### 7.3.1 Fixture-level expected metrics (offline oracle)
+
+**Fixture type heterogeneity:** The four tools have different fixture types (see §7.0). The §7.3.1 oracle must specify expected metrics per tool, not as a single cross-tool comparison. AccessGraph and Checkov re-run end-to-end and produce deterministic metrics; PMapper re-runs analysis against captured graph storage and produces deterministic metrics; Prowler re-parses captured output and produces deterministic metrics (because the captured output is static). All four reproduction paths are deterministic; tolerance is +/-0 on counts and exact-match on float metrics.
 
 > To be populated after the first successful run of `make reproduce-fixtures`.
 > These values are **deterministic** — golden fixtures are static, so the same
@@ -846,7 +881,7 @@ Both modes share the same pipeline; only the post-run validation step differs.
    benchmark run is under $5 USD at AWS on-demand pricing for the IAM and
    lightweight compute resources IAMVulnerable creates.
 
-2. **Tool version sensitivity.** All six tools change output formats and
+2. **Tool version sensitivity.** All four tools change output formats and
    detection logic across versions. The `parse()` implementations in
    `internal/benchmark/` are valid only for the pinned versions listed in
    Section 3. Results on newer versions may differ without being wrong.

@@ -167,3 +167,42 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   with the conflicting-dependencies error. The rationale has been
   corrected in `docs/ARCHITECTURE.md`, the `Dockerfile` comments,
   `requirements-prowler.txt`, and `requirements-checkov.txt`.
+- `docs/benchmark_methodology.md` §3.1 (PMapper) and §3.2 (Prowler) tool
+  invocation contracts: corrected the documented command-line flags
+  after empirical verification against the Docker image. The
+  previously committed §3.1 documented
+  `pmapper --input-dir <scenarioDir>` and §3.2 documented
+  `prowler aws --input-file <scenarioDir>`. Verification revealed
+  that PMapper's `--input-dir` flag is not part of the PMapper CLI;
+  graph creation requires live AWS API calls via boto3 (with
+  `--localstack-endpoint` available for development). Prowler's `aws`
+  provider similarly requires live AWS (with `AWS_ENDPOINT_URL`
+  honored for LocalStack development). The corrected §3.1 documents
+  PMapper's two-step contract (live `graph create` followed by
+  offline `analysis --output-type json` against captured graph
+  storage). The corrected §3.2 documents Prowler's live-only contract
+  with `--output-formats json-ocsf` and explains the
+  captured-output-as-fixture reproducibility model. Two additional
+  flag mismatches were caught and corrected in the same review:
+  (1) PMapper analysis flag is `--output-type` not `--output`;
+  (2) Prowler `--output-formats` accepts `json-ocsf` not plain
+  `json`. §3.3 (Checkov) corrected `--framework cloudformation` to
+  `--framework terraform` because IAMVulnerable is a Terraform-based
+  project. The Go adapters in `internal/benchmark/pmapper.go` and
+  `internal/benchmark/prowler.go` will be rewritten in a follow-up
+  commit (adapter rewrite). §7.0 reproduction paths rewritten to
+  document per-tool fixture types and reproducibility properties.
+  §7.1 reproduction-from-scratch script replaced with a workflow
+  description stating that the orchestration glue is not yet
+  implemented.
+- `docs/ARCHITECTURE.md` §14 deferred Makefile targets table: removed
+  `docker-build`, `docker-up`, and `docker-down` from the deferred
+  list (they were added in commit 694ef29 but the doc was not
+  updated). Corrected the `make capture-tool-outputs` description
+  from "all six tools" (stale after Steampipe and CloudSploit were
+  dropped) and "one representative scenario" (incorrect) to "all
+  four tools" and "each IAMVulnerable scenario."
+- `docs/ARCHITECTURE.md` §15 planned extensions: marked Dockerfile
+  (item 4) and docker-compose configuration (item 5) as DONE.
+  Reduced the deferred Makefile target count in item 7 from eleven
+  to eight.
