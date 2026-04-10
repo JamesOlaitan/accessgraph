@@ -44,10 +44,6 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   JSON should check this field before interpreting FPR values; an
   `fpr_measured: false` row with `fpr: 0` means "not measured,"
   not "confirmed zero."
-- `--account-id` flag on the `benchmark` subcommand. Required for
-  live-AWS fixture capture; allows the benchmark binary
-  to be invoked against any AWS test account without relying on
-  ambient credentials' caller identity.
 - `Dockerfile`: single benchmark image co-installing Go, two isolated
   Python 3.11 virtual environments (`/opt/venv-prowler` for
   Prowler + PMapper, `/opt/venv-checkov` for Checkov), the AccessGraph
@@ -79,6 +75,26 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- External tool adapters in `internal/benchmark/` updated to match the
+  actual command-line contracts of the underlying binaries. The PMapper
+  adapter now invokes
+  `pmapper --account <id> analysis --output-type json` against a captured
+  graph storage directory (the live `pmapper graph create` step is
+  performed by the orchestration layer at capture time, not by the
+  adapter). The PMapper parser now handles the real analysis output
+  schema (`findings[]` with principal references in description text)
+  instead of the previously assumed `paths[].nodes[].arn` structure.
+  The Prowler adapter now reads captured `json-ocsf` output directly
+  from the scenario fixture rather than invoking the prowler binary.
+  The Prowler parser now handles the OCSF schema (`status_code` for
+  FAIL/PASS, `resources[].uid` for resource ARNs) instead of the
+  previously assumed plain JSON schema (`status`, `resource_arn`).
+  The Checkov adapter framework selector changed from `cloudformation`
+  to `terraform` to match the IAMVulnerable repository structure.
+  Parser unit tests added against captured tool output samples in
+  `tests/benchmark/testdata/`. The `--account-id` flag on the benchmark
+  command was removed; the account ID is now discovered from the PMapper
+  fixture directory structure by the adapter.
 - `docs/ARCHITECTURE.md` Dependency Pinning section: replaced the
   `<digest>` placeholder for `golang:1.26-bookworm` with the actual
   sha256 digest pinned in `Dockerfile`.

@@ -1,0 +1,21 @@
+{
+    "account": "000000000000",
+    "date_and_time": "2026-04-10T10:06:35.186742+00:00",
+    "findings": [
+        {
+            "title": "IAM Principal Can Escalate Privileges",
+            "severity": "High",
+            "impact": "A lower-privilege IAM User or Role is able to gain administrative privileges. This could lead to the lower-privilege principal being used to compromise the account and its resources.",
+            "description": "In AWS, IAM Principals such as IAM Users or IAM Roles have their permissions defined using IAM Policies. These policies describe different actions, resources, and conditions where the principal can make a given API call to a service.\n\nAdministrative principals can call any action with any resource, as in the AdministratorAccess AWS-managed policy. However, some permissions may allow another non-administrative principal to gain access to an administrative principal. This represents a privilege escalation risk.\n\nThe following principals could escalate privileges:\n\n* user/escalation-user can escalate privileges by accessing the administrative principal role/admin-role:\n   * user/escalation-user can access via sts:AssumeRole role/admin-role\n\n",
+            "recommendation": "Review the IAM Policies that are applicable to the affected IAM User(s) or Role(s). Either reduce the permissions of the administrative principal(s), or reduce the permissions of the principal(s) that can access the administrative principals."
+        },
+        {
+            "title": "IAM Principals with Circular Access",
+            "severity": "Low",
+            "impact": "If an attacker gains access to one of the identified principals, they can potentially evade detections or persist access.",
+            "description": "In AWS, an IAM Principal with a specific set of permissions can gain access to another principal, such as when an IAM User has permission to call `sts:AssumeRole` for an IAM Role. Principal Mapper tracks these connections as Nodes (a.k.a. Vertices) and Edges in a Graph.\n\nHowever, there may be instances where nodes can access each other in a circular manner. This presents a risk in the account if an attacker gains access to one of the principals in a cycle. An attacker can abuse that access to pivot between each of the principals in a cycle. This can be used to evade detection or persist access to an AWS account. The following cycles were identified:\n\n* user/escalation-user -> role/admin-role -> user/escalation-user\n",
+            "recommendation": "Break the cycle of access by altering/removing permissions assigned to one of the noted principals."
+        }
+    ],
+    "source": "Findings identified using Principal Mapper (1.1.5) from NCC Group: https://github.com/nccgroup/PMapper"
+}

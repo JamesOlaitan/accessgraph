@@ -7,36 +7,40 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
-// pmapperNode is the minimal representation of a node in PMapper's graph output.
-//
-// PMapper's "graph create" command produces a JSON graph where each node carries
-// an ARN and type. The "analysis" subcommand produces privilege-escalation paths
-// as sequences of node ARNs.
-type pmapperNode struct {
-	// ARN is the IAM principal ARN for this graph node.
-	ARN string `json:"arn"`
+// principalRefRe matches IAM principal references in PMapper's analysis
+// description text. PMapper emits principals as type/name pairs such as
+// "user/escalation-user" or "role/admin-role".
+var principalRefRe = regexp.MustCompile(`(?:user|role|group)/[\w.+=,@-]+`)
+
+// pmapperFinding is one entry in PMapper's analysis JSON output.
+type pmapperFinding struct {
+	// Title describes the class of finding (e.g., "IAM Principal Can Escalate Privileges").
+	Title string `json:"title"`
+
+	// Severity is the finding severity ("High", "Low", etc.).
+	Severity string `json:"severity"`
+
+	// Description contains the finding narrative, including principal names
+	// in type/name format (e.g., "user/escalation-user", "role/admin-role").
+	Description string `json:"description"`
 }
 
-// pmapperPath represents one privilege-escalation path reported by PMapper's
-// analysis output.
-//
-// Each path is a sequence of node ARNs from the starting principal to the
-// privilege-escalation target.
-type pmapperPath struct {
-	// Nodes is the ordered list of principal ARNs on this escalation path.
-	Nodes []pmapperNode `json:"nodes"`
-}
-
-// pmapperAnalysis is the top-level structure of PMapper's JSON analysis output.
+// pmapperAnalysis is the top-level structure of PMapper's JSON analysis output
+// from `pmapper --account <id> analysis --output-type json`.
 type pmapperAnalysis struct {
-	// Paths is the list of discovered privilege-escalation paths.
-	Paths []pmapperPath `json:"paths"`
+	// Account is the AWS account ID of the analyzed graph.
+	Account string `json:"account"`
+
+	// Findings is the list of identified issues.
+	Findings []pmapperFinding `json:"findings"`
 }
 
 // pmapperAdapter implements ToolAdapter for the PMapper IAM privilege escalation
@@ -46,7 +50,17 @@ type pmapperAdapter struct{}
 // Compile-time assertion that *pmapperAdapter satisfies ToolAdapter.
 var _ ToolAdapter = (*pmapperAdapter)(nil)
 
-// Invoke runs PMapper against the scenario directory.
+// Invoke reads PMapper's analysis output from the captured graph storage
+// directory. The benchmark execution model for PMapper is replay-against-
+// captured-fixture: the live `pmapper graph create` step is performed by the
+// orchestration layer at capture time, and this adapter runs only the offline
+// analysis step.
+//
+// The scenarioDir parameter points to the captured $PMAPPER_STORAGE directory
+// (the parent of the <account-id>/ subdirectory). The adapter reads the account
+// ID from the directory listing and runs:
+//
+//	PMAPPER_STORAGE=<scenarioDir> pmapper --account <id> analysis --output-type json
 func (a *pmapperAdapter) Invoke(ctx context.Context, binaryPath, scenarioDir string) (stdout, stderr []byte, err error) {
 	return runPMapper(ctx, binaryPath, scenarioDir)
 }
@@ -54,97 +68,91 @@ func (a *pmapperAdapter) Invoke(ctx context.Context, binaryPath, scenarioDir str
 // Parse interprets PMapper's JSON analysis output to determine whether the
 // expected attack path was detected.
 //
-// Parameters:
-//   - stdout: combined stdout from the pmapper analysis invocation.
-//   - expected: the scenario being evaluated.
+// PMapper's analysis output contains a `findings` array where each finding
+// has a `description` field with principal references in type/name format
+// (e.g., "user/escalation-user", "role/admin-role"). The parser extracts
+// these references, constructs full ARNs using the account ID from the
+// analysis output, and checks for intersection with ExpectedAttackPath.
 //
-// Returns:
-//   - true if any expected path node exactly matches a node ARN in the reported paths.
-//
-// Errors:
-//   - ErrToolFailed if the output cannot be parsed as JSON.
+// Returns true if any constructed ARN matches any element of ExpectedAttackPath.
 func (a *pmapperAdapter) Parse(stdout []byte, expected model.Scenario) (bool, error) {
 	var analysis pmapperAnalysis
 	if parseErr := json.Unmarshal(stdout, &analysis); parseErr != nil {
 		return false, fmt.Errorf("%w: parsing pmapper JSON: %v", ErrToolFailed, parseErr)
 	}
 
-	nodeARNs := make(map[string]bool)
-	for _, p := range analysis.Paths {
-		for _, n := range p.Nodes {
-			nodeARNs[n.ARN] = true
+	principalARNs := make(map[string]bool)
+	for _, f := range analysis.Findings {
+		refs := principalRefRe.FindAllString(f.Description, -1)
+		for _, ref := range refs {
+			arn := fmt.Sprintf("arn:aws:iam::%s:%s", analysis.Account, ref)
+			principalARNs[arn] = true
 		}
 	}
+
 	for _, node := range expected.ExpectedAttackPath {
-		if node != "" && nodeARNs[node] {
+		if node != "" && principalARNs[node] {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-// runPMapper invokes PMapper against exported IAM JSON and returns stdout and
-// stderr separately.
+// runPMapper invokes PMapper's offline analysis step against a captured graph
+// storage directory and returns stdout and stderr separately.
 //
-// PMapper is invoked in two sequential steps:
+// PMapper is invoked as:
 //
-//  1. Graph creation:
-//     pmapper --input-dir <scenarioDir> graph create
+//	PMAPPER_STORAGE=<scenarioDir> pmapper --account <accountID> analysis --output-type json
 //
-//  2. Analysis:
-//     pmapper --input-dir <scenarioDir> analysis --output json
-//
-// Parameters:
-//   - ctx: context for timeout and cancellation.
-//   - binaryPath: path to the PMapper binary.
-//   - scenarioDir: path to the directory containing the scenario's IAM JSON files.
-//
-// Returns stdout and stderr as separate byte slices from PMapper's analysis output.
-//
-// Errors:
-//   - ErrToolNotFound if the PMapper binary cannot be located.
-//   - ErrToolFailed if PMapper exits non-zero or its output cannot be parsed.
+// The account ID is discovered by listing the subdirectories of scenarioDir;
+// PMapper stores graph data in $PMAPPER_STORAGE/<account-id>/.
 func runPMapper(ctx context.Context, binaryPath, scenarioDir string) ([]byte, []byte, error) {
-	if _, err := exec.LookPath(binaryPath); err != nil {
-		return nil, nil, fmt.Errorf("%w: %q: %v", ErrToolNotFound, binaryPath, err)
+	if scenarioDir == "" {
+		return nil, nil, fmt.Errorf("%w: empty scenario directory", ErrToolFailed)
 	}
 
-	// Step 1: build the graph from the offline scenario directory.
-	createArgs := []string{
-		"--input-dir", scenarioDir,
-		"graph", "create",
-	}
-	var createStderr bytes.Buffer
-	createCmd := exec.CommandContext(ctx, binaryPath, createArgs...) //nolint:gosec
-	createCmd.Stderr = &createStderr
-	// pmapper writes results to a JSON file; stdout is diagnostic only.
-	if createErr := createCmd.Run(); createErr != nil {
-		var ee *exec.ExitError
-		if isExitError(createErr, &ee) {
-			return nil, nil, fmt.Errorf("%w: pmapper graph create exited %d: %s",
-				ErrToolFailed, ee.ExitCode(), strings.TrimSpace(createStderr.String()))
-		}
-		return nil, nil, fmt.Errorf("%w: running pmapper graph create: %v", ErrToolFailed, createErr)
+	accountID, err := discoverPMapperAccountID(scenarioDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: %v", ErrToolFailed, err)
 	}
 
-	// Step 2: run analysis and collect JSON output.
-	analysisArgs := []string{
-		"--input-dir", scenarioDir,
+	args := []string{
+		"--account", accountID,
 		"analysis",
-		"--output", "json",
+		"--output-type", "json",
 	}
+
 	var stdoutBuf, stderrBuf bytes.Buffer
-	analysisCmd := exec.CommandContext(ctx, binaryPath, analysisArgs...) //nolint:gosec
-	analysisCmd.Stdout = &stdoutBuf
-	analysisCmd.Stderr = &stderrBuf
-	if err := analysisCmd.Run(); err != nil {
+	cmd := exec.CommandContext(ctx, binaryPath, args...) //nolint:gosec
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	cmd.Env = append(os.Environ(), "PMAPPER_STORAGE="+scenarioDir)
+
+	if runErr := cmd.Run(); runErr != nil {
 		var ee *exec.ExitError
-		if isExitError(err, &ee) {
+		if isExitError(runErr, &ee) {
 			return nil, nil, fmt.Errorf("%w: pmapper analysis exited %d: %s",
 				ErrToolFailed, ee.ExitCode(), strings.TrimSpace(stderrBuf.String()))
 		}
-		return nil, nil, fmt.Errorf("%w: running pmapper analysis: %v", ErrToolFailed, err)
+		return nil, nil, fmt.Errorf("%w: running pmapper analysis: %v", ErrToolFailed, runErr)
 	}
 
 	return stdoutBuf.Bytes(), stderrBuf.Bytes(), nil
+}
+
+// discoverPMapperAccountID reads the first subdirectory name under storageDir.
+// PMapper stores graph data in $PMAPPER_STORAGE/<account-id>/, so the
+// subdirectory name is the account ID.
+func discoverPMapperAccountID(storageDir string) (string, error) {
+	entries, err := os.ReadDir(storageDir)
+	if err != nil {
+		return "", fmt.Errorf("reading pmapper storage dir %q: %v", storageDir, err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			return e.Name(), nil
+		}
+	}
+	return "", fmt.Errorf("no account directory found in pmapper storage %q", storageDir)
 }

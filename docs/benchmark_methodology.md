@@ -323,7 +323,7 @@ The exact command for each tool is the authoritative specification for its
 `outputAdapter` implementation. Any invocation that differs from what is listed
 here is a benchmark defect.
 
-**`detection_latency_ms` measurement boundary:** The latency measurement covers tool invocation time only. The clock starts before `adapter.Invoke()` is called and stops when `adapter.Invoke()` returns. Output parsing time (`adapter.Parse()`) is excluded. For Prowler, latency includes the fallback tmpdir JSON file-read time when stdout is empty (this occurs inside `Invoke()`). This definition is implemented in `dispatch()` in `dispatch_integration.go`.
+**`detection_latency_ms` measurement boundary:** The latency measurement covers tool invocation time only. The clock starts before `adapter.Invoke()` is called and stops when `adapter.Invoke()` returns. Output parsing time (`adapter.Parse()`) is excluded. For Prowler, latency covers only the file-read time of the captured `.ocsf.json` fixture (Prowler is not re-invoked at benchmark replay time). For PMapper, latency covers the `pmapper analysis` subprocess execution against the captured graph storage. This definition is implemented in `dispatch()` in `dispatch_integration.go`.
 
 **Cross-tool latency comparisons:** `detection_latency_ms` is not directly comparable across tools. External tool latency includes process startup overhead; AccessGraph latency covers the in-process pipeline (parse, build, BFS, score). Latency analysis in the paper is therefore reported per-tool only, not as a cross-tool ranking.
 
@@ -388,7 +388,7 @@ prowler aws \
 - For canonical capture, use a real AWS profile with the `AccessGraphBenchmarkScanner` role's permissions (`ReadOnlyAccess` + `SecurityAudit`)
 - No `--checks` filter is applied; Prowler runs its full check suite
 - Prowler exit code 3 indicates findings were detected (success); exit code 0 indicates no findings (also success); any other non-zero exit code is a tool failure (`ErrToolFailed`)
-- Output reading: stdout is preferred; if stdout is empty, the adapter falls back to reading the first `.json` file from the tmpdir output directory via `readFirstJSONFile()`
+- Output reading at capture time: Prowler writes its output to `<tmpdir>/prowler-output-<account-id>-<timestamp>.ocsf.json`. At benchmark replay time, the adapter reads the first `*.ocsf.json` file from the scenario fixture directory via `readProwlerFixture()` and does not re-invoke Prowler
 
 **Fixture format:** Prowler's fixture is the captured `json-ocsf` output file from a successful live run. The file is named `prowler-output-<account-id>-<timestamp>.ocsf.json` by Prowler. This file is committed as the Prowler fixture for that scenario.
 
@@ -436,8 +436,8 @@ The benchmark measures whether each tool **detects any element of the expected a
 
 | Tool | Observable field | Match type | Justification |
 |------|-----------------|------------|---------------|
-| PMapper | `arn` in `paths[].nodes[]` JSON output | Exact ARN match against `ExpectedAttackPath` elements | PMapper emits node ARNs in escalation paths |
-| Prowler | `resource_arn` in JSON output array | Exact ARN match against `ExpectedAttackPath` elements (where `status="FAIL"`) | Prowler emits resource ARNs with FAIL/PASS status |
+| PMapper | Principal references (`user/<name>`, `role/<name>`) in `findings[].description`, reconstructed to full ARNs using `account` field | Exact ARN match against `ExpectedAttackPath` elements | PMapper emits principal names in finding descriptions; ARNs are reconstructed as `arn:aws:iam::<account>:<ref>` |
+| Prowler | `resources[].uid` in json-ocsf output array | Exact ARN match against `ExpectedAttackPath` elements (where `status_code="FAIL"`) | Prowler OCSF findings carry resource ARNs in `resources[].uid` with FAIL/PASS in `status_code` |
 | Checkov | `resource` in `results.failed_checks` JSON | Exact match against `ExpectedAttackPath` elements (where severity is HIGH/CRITICAL/empty) | Checkov emits resource labels in failed checks |
 | AccessGraph | `path.ToResourceID` → ARN via `snapshot.Resources` | Exact ARN match against terminal (last) element of `ExpectedAttackPath` | In-process; maps internal resource IDs to ARNs |
 
@@ -495,11 +495,13 @@ True negative example:
 
 Output field inspected: JSON output from `pmapper --account <account-id> analysis --output-type json`.
 
-The output is parsed into a `pmapperAnalysis` struct containing `Paths []pmapperPath`, where each `pmapperPath` has `Nodes []pmapperNode`, and each `pmapperNode` has an `ARN` string field.
+The output is parsed into a `pmapperAnalysis` struct containing `Account string` (`json:"account"`) and `Findings []pmapperFinding` (`json:"findings"`). Each `pmapperFinding` has `Title string`, `Severity string`, and `Description string` fields. PMapper's analysis output is a high-level findings report, not structured graph paths. Principal references appear in the `Description` field as type/name pairs (e.g., `user/escalation-user`, `role/admin-role`).
 
-**TP:** Any node ARN in any path exactly matches any element of `ExpectedAttackPath`. The adapter collects all node ARNs from all paths into a set and checks for intersection with the expected attack path elements.
+The adapter extracts all principal references matching the pattern `(user|role|group)/[\w.+=,@-]+` from each finding's description, reconstructs full ARNs as `arn:aws:iam::<account>:<ref>` using the top-level `account` field, and checks for intersection with `ExpectedAttackPath` elements.
 
-**FN:** No node ARN in any path matches any element of `ExpectedAttackPath`.
+**TP:** Any reconstructed principal ARN exactly matches any element of `ExpectedAttackPath`.
+
+**FN:** No reconstructed principal ARN matches any element of `ExpectedAttackPath`.
 
 **FP:** Not classified by the external tool dispatch logic. See Section 5.3 for false positive rate (FPR) limitations.
 
@@ -507,17 +509,17 @@ The output is parsed into a `pmapperAnalysis` struct containing `Paths []pmapper
 
 **Prowler**
 
-Output field inspected: plain JSON output (not JSON-OCSF).
+Output field inspected: captured json-ocsf output from `prowler aws --output-formats json-ocsf`. The adapter reads the captured `.ocsf.json` file directly from the scenario fixture directory rather than re-invoking Prowler.
 
-The output is parsed as `[]prowlerFinding`, where each `prowlerFinding` has `ResourceARN string` (`json:"resource_arn"`) and `Status string` (`json:"status"`).
+The output is parsed as `[]prowlerOCSFFinding`, where each `prowlerOCSFFinding` has `StatusCode string` (`json:"status_code"`) and `Resources []prowlerOCSFResource` (`json:"resources"`). Each `prowlerOCSFResource` has `UID string` (`json:"uid"`) containing the resource ARN. In Prowler's OCSF output, `status_code` holds `"FAIL"` or `"PASS"` (the `status` field holds an OCSF lifecycle value like `"New"` and is not used for detection matching).
 
 **TP:** A finding exists where both conditions hold:
-1. `status` equals `"FAIL"` (case-insensitive comparison via `strings.EqualFold`)
-2. `resource_arn` exactly matches any element of `ExpectedAttackPath`
+1. `status_code` equals `"FAIL"` (case-insensitive comparison via `strings.EqualFold`)
+2. Any `resources[].uid` exactly matches any element of `ExpectedAttackPath`
 
-The adapter collects resource ARNs from all FAIL findings into a set and checks for intersection with the expected attack path elements. No `event_code` or check ID filtering is applied.
+The adapter collects resource UIDs from all FAIL findings into a set and checks for intersection with the expected attack path elements. No `event_code` or check ID filtering is applied.
 
-**FN:** No FAIL finding has a `resource_arn` matching any element of `ExpectedAttackPath`.
+**FN:** No FAIL finding has a `resources[].uid` matching any element of `ExpectedAttackPath`.
 
 **FP:** Not classified by the external tool dispatch logic. See Section 5.3 for FPR limitations.
 

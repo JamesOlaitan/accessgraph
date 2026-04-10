@@ -23,11 +23,16 @@ func mustMarshal(t *testing.T, v any) []byte {
 	return b
 }
 
-// prowlerFindingStub mirrors prowlerFinding so we can construct test JSON
-// without importing the unexported type.
-type prowlerFindingStub struct {
-	ResourceARN string `json:"resource_arn"`
-	Status      string `json:"status"`
+// prowlerOCSFResourceStub mirrors prowlerOCSFResource.
+type prowlerOCSFResourceStub struct {
+	UID string `json:"uid"`
+}
+
+// prowlerOCSFFindingStub mirrors prowlerOCSFFinding so we can construct test
+// JSON without importing the unexported type.
+type prowlerOCSFFindingStub struct {
+	StatusCode string                    `json:"status_code"`
+	Resources  []prowlerOCSFResourceStub `json:"resources"`
 }
 
 func TestProwlerAdapterParse(t *testing.T) {
@@ -53,33 +58,33 @@ func TestProwlerAdapterParse(t *testing.T) {
 	}{
 		{
 			name: "true_positive_exact_match",
-			stdout: mustMarshal(t, []prowlerFindingStub{
-				{ResourceARN: targetARN, Status: "FAIL"},
-				{ResourceARN: otherARN, Status: "PASS"},
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
+				{StatusCode: "PASS", Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: true,
 		},
 		{
-			name: "true_positive_status_case_insensitive",
-			stdout: mustMarshal(t, []prowlerFindingStub{
-				{ResourceARN: targetARN, Status: "fail"},
+			name: "true_positive_status_code_case_insensitive",
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "fail", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: true,
 		},
 		{
 			name: "false_negative_no_matching_arn",
-			stdout: mustMarshal(t, []prowlerFindingStub{
-				{ResourceARN: otherARN, Status: "FAIL"},
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: false,
 		},
 		{
 			name: "false_negative_matching_arn_is_pass",
-			stdout: mustMarshal(t, []prowlerFindingStub{
-				{ResourceARN: targetARN, Status: "PASS"},
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "PASS", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: false,
@@ -99,8 +104,8 @@ func TestProwlerAdapterParse(t *testing.T) {
 		},
 		{
 			name: "empty_expected_attack_path_never_detects",
-			stdout: mustMarshal(t, []prowlerFindingStub{
-				{ResourceARN: targetARN, Status: "FAIL"},
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario: model.Scenario{
 				ID:                   "no-path",
@@ -108,6 +113,17 @@ func TestProwlerAdapterParse(t *testing.T) {
 				StartingPrincipalARN: startingARN,
 			},
 			wantDetect: false,
+		},
+		{
+			name: "multiple_resources_per_finding",
+			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
+				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{
+					{UID: otherARN},
+					{UID: targetARN},
+				}},
+			}),
+			scenario:   baseScenario,
+			wantDetect: true,
 		},
 	}
 
@@ -132,21 +148,22 @@ func TestProwlerAdapterParse(t *testing.T) {
 	}
 }
 
-// pmapperAnalysisStub mirrors the unexported pmapperAnalysis type.
+// pmapperFindingStub mirrors the pmapperFinding type.
+type pmapperFindingStub struct {
+	Title       string `json:"title"`
+	Severity    string `json:"severity"`
+	Description string `json:"description"`
+}
+
+// pmapperAnalysisStub mirrors the pmapperAnalysis type.
 type pmapperAnalysisStub struct {
-	Paths []pmapperPathStub `json:"paths"`
-}
-
-type pmapperPathStub struct {
-	Nodes []pmapperNodeStub `json:"nodes"`
-}
-
-type pmapperNodeStub struct {
-	ARN string `json:"arn"`
+	Account  string               `json:"account"`
+	Findings []pmapperFindingStub `json:"findings"`
 }
 
 func TestPMapperAdapterParse(t *testing.T) {
 	const (
+		accountID    = "123456789012"
 		attackerARN  = "arn:aws:iam::123456789012:user/attacker"
 		adminRoleARN = "arn:aws:iam::123456789012:role/AdminRole"
 		unrelatedARN = "arn:aws:iam::123456789012:user/irrelevant"
@@ -167,14 +184,14 @@ func TestPMapperAdapterParse(t *testing.T) {
 		wantErrWrap error
 	}{
 		{
-			name: "true_positive_node_in_path",
+			name: "true_positive_principal_in_description",
 			stdout: mustMarshal(t, pmapperAnalysisStub{
-				Paths: []pmapperPathStub{
+				Account: accountID,
+				Findings: []pmapperFindingStub{
 					{
-						Nodes: []pmapperNodeStub{
-							{ARN: attackerARN},
-							{ARN: adminRoleARN},
-						},
+						Title:       "IAM Principal Can Escalate Privileges",
+						Severity:    "High",
+						Description: "* user/attacker can escalate privileges by accessing the administrative principal role/AdminRole:\n   * user/attacker can access via sts:AssumeRole role/AdminRole\n",
 					},
 				},
 			}),
@@ -184,12 +201,12 @@ func TestPMapperAdapterParse(t *testing.T) {
 		{
 			name: "true_positive_only_terminal_node_present",
 			stdout: mustMarshal(t, pmapperAnalysisStub{
-				Paths: []pmapperPathStub{
+				Account: accountID,
+				Findings: []pmapperFindingStub{
 					{
-						Nodes: []pmapperNodeStub{
-							{ARN: unrelatedARN},
-							{ARN: adminRoleARN},
-						},
+						Title:       "IAM Principal Can Escalate Privileges",
+						Severity:    "High",
+						Description: "* user/irrelevant can access role/AdminRole\n",
 					},
 				},
 			}),
@@ -197,13 +214,14 @@ func TestPMapperAdapterParse(t *testing.T) {
 			wantDetect: true,
 		},
 		{
-			name: "false_negative_no_matching_nodes",
+			name: "false_negative_no_matching_principals",
 			stdout: mustMarshal(t, pmapperAnalysisStub{
-				Paths: []pmapperPathStub{
+				Account: accountID,
+				Findings: []pmapperFindingStub{
 					{
-						Nodes: []pmapperNodeStub{
-							{ARN: unrelatedARN},
-						},
+						Title:       "IAM Principal Can Escalate Privileges",
+						Severity:    "High",
+						Description: "* user/irrelevant can access role/SomeOtherRole\n",
 					},
 				},
 			}),
@@ -211,19 +229,35 @@ func TestPMapperAdapterParse(t *testing.T) {
 			wantDetect: false,
 		},
 		{
-			name: "false_negative_empty_paths",
+			name: "false_negative_empty_findings",
 			stdout: mustMarshal(t, pmapperAnalysisStub{
-				Paths: []pmapperPathStub{},
+				Account:  accountID,
+				Findings: []pmapperFindingStub{},
 			}),
 			scenario:   baseScenario,
 			wantDetect: false,
 		},
 		{
 			name:        "malformed_json_returns_error",
-			stdout:      []byte(`{"paths": [`),
+			stdout:      []byte(`{"findings": [`),
 			scenario:    baseScenario,
 			wantDetect:  false,
 			wantErrWrap: benchmark.ErrToolFailed,
+		},
+		{
+			name: "wrong_account_id_no_match",
+			stdout: mustMarshal(t, pmapperAnalysisStub{
+				Account: "999999999999",
+				Findings: []pmapperFindingStub{
+					{
+						Title:       "IAM Principal Can Escalate Privileges",
+						Severity:    "High",
+						Description: "* user/attacker can access role/AdminRole\n",
+					},
+				},
+			}),
+			scenario:   baseScenario,
+			wantDetect: false,
 		},
 	}
 

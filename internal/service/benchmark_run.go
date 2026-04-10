@@ -18,12 +18,7 @@ type BenchmarkInput struct {
 	ScenariosDir string
 	Tools        string
 	Output       string
-	// AccountID is the AWS account ID of the test account. It is used by
-	// live-AWS fixture capture to substitute the account ID into fixture
-	// templates and Terraform variable files. Empty string is valid when
-	// running against pre-captured offline fixtures.
-	AccountID string
-	Cfg       *config.Config
+	Cfg          *config.Config
 }
 
 // RunBenchmark executes the full benchmark pipeline:

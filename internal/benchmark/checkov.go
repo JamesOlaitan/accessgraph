@@ -94,7 +94,7 @@ func (a *checkovAdapter) Parse(stdout []byte, expected model.Scenario) (bool, er
 //
 // Checkov is invoked as:
 //
-//	checkov -d <scenarioDir> --framework cloudformation --output json
+//	checkov -d <scenarioDir> --framework terraform --output json
 //
 // Parameters:
 //   - ctx: context for timeout and cancellation.
@@ -113,7 +113,7 @@ func runCheckov(ctx context.Context, binaryPath, scenarioDir string) ([]byte, []
 
 	args := []string{
 		"-d", scenarioDir,
-		"--framework", "cloudformation",
+		"--framework", "terraform",
 		"--output", "json",
 	}
 

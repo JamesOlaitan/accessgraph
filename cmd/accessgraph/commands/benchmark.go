@@ -28,7 +28,6 @@ type benchmarkFlags struct {
 	scenariosDir string
 	tools        string
 	output       string
-	accountID    string
 }
 
 var benchmarkOpts benchmarkFlags
@@ -40,8 +39,6 @@ func init() {
 		`comma-separated list of tools: accessgraph, prowler, pmapper, checkov`)
 	benchmarkCmd.Flags().StringVar(&benchmarkOpts.output, "output", "terminal",
 		`output format: "terminal" or "json"`)
-	benchmarkCmd.Flags().StringVar(&benchmarkOpts.accountID, "account-id", "",
-		"AWS account ID of the test account; used by live-AWS fixture capture")
 
 	if err := benchmarkCmd.MarkFlagRequired("scenarios"); err != nil {
 		panic(fmt.Sprintf("accessgraph: failed to mark --scenarios as required: %v", err))
@@ -53,7 +50,6 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 		ScenariosDir: benchmarkOpts.scenariosDir,
 		Tools:        benchmarkOpts.tools,
 		Output:       benchmarkOpts.output,
-		AccountID:    benchmarkOpts.accountID,
 		Cfg:          cfg,
 	}, cmd.OutOrStdout())
 }
