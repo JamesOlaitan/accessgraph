@@ -114,6 +114,29 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   helper functions did not recognize the `none` values used by
   true-negative environments. The manifest loader and the helper functions
   now populate and recognize them.
+- `scripts/capture_scenario.sh` true-negative output path updated to match
+  the scenario root layout expected by
+  `internal/benchmark/pipeline.go` `LoadScenarios`. The previous path
+  `fixtures/tn-environments/<tn-name>/` placed TN fixtures outside the
+  scenario root, so the benchmark loader did not discover them. Fixtures
+  now land at `fixtures/iamvulnerable/<tn-name>/` alongside the vulnerable
+  scenarios. The LocalStack capture workflow now uses `AWS_ENDPOINT_URL`
+  for single-endpoint routing and pins the Terraform AWS provider to
+  `~> 6.22.0` for TN modules as a workaround for LocalStack issue #13426,
+  where provider v6.23+ sends an S3 Control API request that LocalStack
+  community edition does not handle.
+- `docs/benchmark_methodology.md` §4.2 fixture location reference updated
+  to resolve an internal inconsistency with §7.1. The previous text
+  described scenario fixtures as living in
+  `fixtures/iamvulnerable/vulnerable/` or `clean/` subdirectories; §7.1
+  and the reproduction workflow it specifies use the flat layout
+  `fixtures/iamvulnerable/<scenario-id>/` for both vulnerable scenarios
+  and true-negative environments. The JSON schema block itself is
+  unchanged.
+- `docs/ARCHITECTURE.md` TN fixture path reference updated from
+  `fixtures/iamvulnerable/clean/tn-clean-001.json` to
+  `fixtures/iamvulnerable/tn-clean-001/` to match the flat layout that
+  `LoadScenarios` reads.
 - External tool adapters in `internal/benchmark/` updated to match the
   actual command-line contracts of the underlying binaries. The PMapper
   adapter now invokes

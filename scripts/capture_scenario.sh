@@ -28,7 +28,7 @@
 #     └── checkov.json
 #
 # Produces (TN mode):
-#   fixtures/tn-environments/<tn-name>/
+#   fixtures/iamvulnerable/<tn-name>/
 #     ├── iam_export.json
 #     ├── pmapper/000000000000/
 #     ├── prowler.ocsf.json
@@ -66,7 +66,7 @@ mkdir -p "$TF_PLUGIN_CACHE_DIR"
 # Mode detection
 if [[ "$SCENARIO" == tn-clean-* ]]; then
     MODE="tn"
-    FIXTURE_DIR="${REPO_ROOT}/fixtures/tn-environments/${SCENARIO}"
+    FIXTURE_DIR="${REPO_ROOT}/fixtures/iamvulnerable/${SCENARIO}"
 else
     MODE="vulnerable"
     FIXTURE_DIR="${REPO_ROOT}/fixtures/iamvulnerable/${SCENARIO}"
@@ -192,7 +192,10 @@ if [[ "$MODE" == "vulnerable" ]]; then
 
     # Provider config for LocalStack. Named *_override.tf so Terraform
     # merges it with the base configuration. For vulnerable mode, the
-    # base has no provider block, so this adds one.
+    # base has no provider block, so this adds one. The per-service
+    # endpoint is handled by AWS_ENDPOINT_URL (set before terraform
+    # init/apply), which the Terraform AWS provider respects as a
+    # single-endpoint fallback for all services.
     cat > "${WORK_DIR}/localstack_override.tf" <<'TFEOF'
 terraform {
   required_providers {
@@ -207,41 +210,48 @@ provider "aws" {
   access_key                  = "test"
   secret_key                  = "test"
   region                      = "us-east-1"
+  s3_use_path_style           = true
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
-
-  endpoints {
-    iam = "http://localhost:4566"
-    sts = "http://localhost:4566"
-  }
 }
 TFEOF
 
 elif [[ "$MODE" == "tn" ]]; then
     cp "${TN_MODULE_DIR}/"*.tf "$WORK_DIR/"
-    if [[ -f "${TN_MODULE_DIR}/.terraform.lock.hcl" ]]; then
-        cp "${TN_MODULE_DIR}/.terraform.lock.hcl" "$WORK_DIR/"
-    fi
+    # The TN module lock files pin the latest provider version. The
+    # LocalStack override below pins ~> 6.22 (see comment), so the
+    # lock file is intentionally not copied to avoid a version
+    # constraint conflict in the temporary working directory.
 
-    # Override only the provider block. The TN module's versions.tf
-    # already defines required_providers (aws + archive); redefining
-    # it here would drop the archive provider and conflict on the
-    # AWS provider version constraint.
+    # Override the provider block and pin the AWS provider to ~> 6.22.0
+    # for LocalStack compatibility. Terraform AWS provider v6.23+
+    # sends an S3 Control API request that LocalStack community
+    # edition does not handle (LocalStack issue #13426), causing
+    # CreateBucket operations to fail with MalformedXML. The
+    # required_providers override deep-merges with the base
+    # versions.tf; other providers (archive) are unaffected.
+    # AWS_ENDPOINT_URL handles per-service routing;
+    # s3_use_path_style is required for S3 bucket operations against
+    # LocalStack's path-style addressing.
     cat > "${WORK_DIR}/localstack_override.tf" <<'TFEOF'
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.22.0"
+    }
+  }
+}
+
 provider "aws" {
   access_key                  = "test"
   secret_key                  = "test"
   region                      = "us-east-1"
+  s3_use_path_style           = true
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
-
-  endpoints {
-    iam    = "http://localhost:4566"
-    sts    = "http://localhost:4566"
-    lambda = "http://localhost:4566"
-  }
 }
 TFEOF
 fi
@@ -251,6 +261,7 @@ ls "$WORK_DIR/" >&2
 
 echo "--- terraform init ---" >&2
 cd "$WORK_DIR"
+export AWS_ENDPOINT_URL="$ENDPOINT"
 terraform init -input=false >&2
 TF_INITIALIZED=true
 

@@ -434,7 +434,7 @@ IAMVulnerable's 31 paths fall into five categories. Every `SCENARIO` row with `i
 
 To compute Specificity and False Positive Rate, and to prevent tools from trivially achieving 100% recall by flagging everything, the benchmark suite must include clean IAM environments with no escalation path. These are `SCENARIO` rows with `is_true_negative = true`. Their `starting_principal_arn`, `expected_escalation_actions`, and `expected_path_nodes` are empty. Their `chain_length_class` is `none` (`model.ClassNone`) and their `category` is `none` (`model.CategoryNone`). A tool output for a TN scenario that produces any escalation-path finding is scored `LabelFP`. A tool output that produces no finding is scored `LabelTN`.
 
-TN environment `scenario_id` values use the format `tn-clean-NNN` (e.g., `tn-clean-001` through `tn-clean-010`). Fixture filenames match this identifier: `fixtures/iamvulnerable/clean/tn-clean-001.json`, etc.
+TN environment `scenario_id` values use the format `tn-clean-NNN` (e.g., `tn-clean-001` through `tn-clean-010`). Fixture directories match this identifier: `fixtures/iamvulnerable/tn-clean-001/`, etc.
 
 **`chain_length_class` in `BenchmarkResult` is always copied from the scenario fixture's ground-truth class** — it is never derived from `hop_count` at runtime. The hop-count derivation rule (simple/two_hop/multi_hop from hop_count) applies only to `AttackPath` objects produced during analysis reports. This distinction prevents silent miscounting in the per-class recall table when AccessGraph's BFS discovers a path whose hop count differs from the taxonomy-assigned class.
 

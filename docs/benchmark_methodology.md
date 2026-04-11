@@ -447,7 +447,7 @@ The benchmark measures whether each tool **detects any element of the expected a
 
 **Canonical scenario identity table:** The `scenario_id` is the primary key for all cross-document joins, fixture lookups, `result_id` hashing, and reproduction diffs. For vulnerable scenarios, it equals the full Terraform directory name. For true negative environments, it uses the format `tn-clean-NNN`.
 
-Each scenario fixture in `fixtures/iamvulnerable/vulnerable/` (or `clean/` for TN) contains:
+Each scenario fixture in `fixtures/iamvulnerable/<scenario-id>/` contains:
 
 ```json
 {
