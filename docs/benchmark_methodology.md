@@ -796,7 +796,7 @@ Full live-AWS reproduction is the responsibility of the `make reproduce` target.
 
 1. `terraform apply` the scenario's Terraform module against a dedicated AWS test account, using the `AccessGraphBenchmarkScanner` role from `terraform/scanner-role/`
 2. Wait for IAM eventual consistency (Terraform's internal waits handle this)
-3. Export the resulting IAM state via the `accessgraph export-iam` subcommand for use as the AccessGraph and Checkov fixtures
+3. Export the resulting IAM state using `./bin/accessgraph export-iam --profile accessgraph-benchmark --output fixtures/iamvulnerable/<scenario>/iam_export.json` for use as the AccessGraph and Checkov fixtures
 4. Run `pmapper graph create` against the deployed scenario; the resulting `$PMAPPER_STORAGE/<account-id>/` directory becomes the PMapper fixture for this scenario
 5. Run `prowler aws --output-formats json-ocsf` against the deployed scenario; the resulting `.ocsf.json` file becomes the Prowler fixture for this scenario
 6. Run `checkov -d <iamvulnerable_terraform_dir> --framework terraform` against the IAMVulnerable Terraform source (no live AWS interaction)

@@ -86,6 +86,51 @@ prints a JSON object to stdout. All three steps exit with code 0.
 
 ## Usage
 
+### Exporting IAM from an AWS account
+
+Use `export-iam` to produce the IAM JSON snapshot that `accessgraph ingest`
+and `accessgraph analyze` consume. This is the bridge between a live AWS
+account and AccessGraph's offline analysis pipeline.
+
+```
+./bin/accessgraph export-iam --output iam-export.json
+```
+
+Required AWS permissions: the `ReadOnlyAccess` or `SecurityAudit` managed
+policy is sufficient (specifically `iam:GetAccountAuthorizationDetails` and
+`sts:GetCallerIdentity`).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--profile` | (default chain) | AWS profile name from `~/.aws/config` |
+| `--output` | stdout | Output file path |
+| `--region` | us-east-1 | AWS region for STS (IAM is global but STS needs a region) |
+| `--endpoint-url` | (none) | Custom AWS endpoint URL for LocalStack development |
+
+Examples:
+
+```
+# Default credential chain, output to stdout
+./bin/accessgraph export-iam > iam-export.json
+
+# Named profile, output to file
+./bin/accessgraph export-iam --profile prod --output iam-export.json
+
+# LocalStack development
+./bin/accessgraph export-iam --endpoint-url http://localhost:4566 --output iam-export.json
+```
+
+The output is a single JSON file in the same format the existing parser
+consumes (lowercase top-level keys: `users`, `roles`, `groups`, `policies`,
+`account_id`; PascalCase nested fields matching the AWS API). Feed it
+directly into the analysis pipeline:
+
+```
+./bin/accessgraph export-iam --output iam-export.json
+./bin/accessgraph ingest --source iam-export.json --label prod-2026-04
+./bin/accessgraph analyze --label prod-2026-04 --from arn:aws:iam::123456789012:user/dev-user
+```
+
 ### Ingest an IAM snapshot
 
 ```

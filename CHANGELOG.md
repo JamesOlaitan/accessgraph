@@ -8,6 +8,23 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- New `accessgraph export-iam` subcommand that exports an AWS account's
+  IAM configuration as JSON using the AWS SDK's
+  GetAccountAuthorizationDetails API. The command paginates across all
+  result pages and emits the boto3-compatible JSON format that
+  AccessGraph's existing parser consumes. Supports `--profile` for AWS
+  credential selection, `--endpoint-url` for LocalStack development,
+  `--region` for STS (IAM is global but STS requires a region), and
+  `--output` for writing to a file instead of stdout. Unit-tested with
+  a mocked IAM client; a smoke test against LocalStack is available
+  through `scripts/smoke_export_iam.sh` and `make smoke-export-iam`.
+  This command is used by the benchmark's reproduction workflow
+  described in `docs/benchmark_methodology.md` to produce AccessGraph
+  fixtures from deployed IAMVulnerable scenarios, and is also suitable
+  for production users running AccessGraph against their own AWS
+  accounts.
+- `github.com/aws/aws-sdk-go-v2` dependency (root package, config,
+  service/iam, service/sts) for live AWS IAM API access.
 - `terraform/tn-environments/`: 10 true-negative environment modules
   (`tn-clean-001` through `tn-clean-010`) per
   `docs/benchmark_methodology.md §5.1`. Each module deploys least-privilege

@@ -36,10 +36,11 @@ using Open Policy Agent rules, and benchmarks detection accuracy against
 IAMVulnerable scenarios relative to Prowler, PMapper, and Checkov.
 
 Sub-commands:
-  ingest     Parse an IAM export JSON file and persist it as a snapshot.
-  analyze    Build the permission graph and compute blast-radius metrics.
-  benchmark  Run precision/recall benchmarks against IAMVulnerable scenarios.
-  report     Render a previously computed report from stored data.
+  ingest      Parse an IAM export JSON file and persist it as a snapshot.
+  analyze     Build the permission graph and compute blast-radius metrics.
+  benchmark   Run precision/recall benchmarks against IAMVulnerable scenarios.
+  report      Render a previously computed report from stored data.
+  export-iam  Export IAM configuration from a live AWS account as JSON.
 
 Version: ` + Version,
 	// SilenceUsage suppresses the usage message on RunE errors so that the
@@ -74,6 +75,7 @@ func init() {
 	rootCmd.AddCommand(analyzeCmd)
 	rootCmd.AddCommand(benchmarkCmd)
 	rootCmd.AddCommand(reportCmd)
+	rootCmd.AddCommand(exportIAMCmd)
 }
 
 // Execute runs the root command and returns any error produced by the selected

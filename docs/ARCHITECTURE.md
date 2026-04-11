@@ -452,6 +452,7 @@ flowchart TD
  CMD_ANALYZE["analyze command"]
  CMD_BENCHMARK["benchmark command"]
  CMD_REPORT["report command"]
+ CMD_EXPORT_IAM["export-iam command"]
  end
 
  subgraph FACADE["Layer 2b — Service Facades (internal/service/)"]
@@ -483,8 +484,11 @@ flowchart TD
  PROWLER["Prowler"]
  PMAPPER["PMapper"]
  CHECKOV["Checkov"]
+ AWS_API["AWS IAM API\n(live account)"]
  end
 
+ AWS_API --> CMD_EXPORT_IAM
+ CMD_EXPORT_IAM --> IAM_JSON
  IAM_JSON --> CMD_INGEST
  CMD_INGEST --> ANALYSIS_SVC
  CMD_ANALYZE --> ANALYSIS_SVC
