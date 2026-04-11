@@ -12,19 +12,24 @@ import (
 
 // ScenarioManifest is the JSON structure expected in a scenario's manifest.json
 // file that lives at the root of each IAMVulnerable scenario directory.
+// Fields correspond to the SCENARIO schema in docs/ARCHITECTURE.md.
 //
 // Fields:
 //   - Name: the canonical scenario name as published in IAMVulnerable.
 //   - Description: narrative description of the vulnerability being demonstrated.
-//   - ChainLengthClass: one of "simple", "two_hop", or "multi_hop".
-//   - ExpectedAttackPath: ordered sequence of ARNs/IDs that form the ground-truth path.
+//   - ChainLengthClass: one of "simple", "two_hop", "multi_hop", or "none" (for TN).
+//   - ExpectedAttackPath: ordered sequence of ARNs that form the ground-truth path.
+//   - StartingPrincipalARN: ARN of the BFS starting principal.
 //   - Category: the IAMVulnerable escalation category (e.g., "direct_policy").
+//   - IsTrueNegative: true if this scenario expects no escalation path.
 type ScenarioManifest struct {
-	Name               string   `json:"name"`
-	Description        string   `json:"description"`
-	ChainLengthClass   string   `json:"chain_length_class"`
-	ExpectedAttackPath []string `json:"expected_attack_path"`
-	Category           string   `json:"category"`
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	ChainLengthClass     string   `json:"chain_length_class"`
+	ExpectedAttackPath   []string `json:"expected_attack_path"`
+	StartingPrincipalARN string   `json:"starting_principal_arn"`
+	Category             string   `json:"category"`
+	IsTrueNegative       bool     `json:"is_true_negative"`
 }
 
 // LoadScenarios reads all IAMVulnerable scenarios from the given root directory.
@@ -87,13 +92,15 @@ func LoadScenarios(rootDir string) ([]*model.Scenario, error) {
 		}
 
 		scenario := &model.Scenario{
-			ID:                 "iamvulnerable-" + entry.Name(),
-			Name:               manifest.Name,
-			Source:             "iamvulnerable",
-			ChainLength:        chainLengthClass(manifest.ChainLengthClass, scenarioDir),
-			ExpectedAttackPath: manifest.ExpectedAttackPath,
-			Description:        manifest.Description,
-			Category:           scenarioCategory(manifest.Category, scenarioDir),
+			ID:                   "iamvulnerable-" + entry.Name(),
+			Name:                 manifest.Name,
+			Source:               "iamvulnerable",
+			ChainLength:          chainLengthClass(manifest.ChainLengthClass, scenarioDir),
+			ExpectedAttackPath:   manifest.ExpectedAttackPath,
+			StartingPrincipalARN: manifest.StartingPrincipalARN,
+			Description:          manifest.Description,
+			Category:             scenarioCategory(manifest.Category, scenarioDir),
+			IsTrueNegative:       manifest.IsTrueNegative,
 		}
 
 		scenarios = append(scenarios, scenario)
@@ -146,6 +153,8 @@ func scenarioCategory(raw, dir string) model.ScenarioCategory {
 		return model.CategoryPassRoleChain
 	case string(model.CategoryServiceAbuse):
 		return model.CategoryServiceAbuse
+	case string(model.CategoryNone):
+		return model.CategoryNone
 	default:
 		slog.Warn("iamvulnerable: unrecognized category; defaulting to none",
 			slog.String("value", raw),
@@ -173,6 +182,8 @@ func chainLengthClass(raw, dir string) model.ChainLengthClass {
 		return model.ClassTwoHop
 	case string(model.ClassMultiHop):
 		return model.ClassMultiHop
+	case string(model.ClassNone):
+		return model.ClassNone
 	default:
 		slog.Warn("iamvulnerable: unrecognized chain_length_class; defaulting to simple",
 			slog.String("value", raw),

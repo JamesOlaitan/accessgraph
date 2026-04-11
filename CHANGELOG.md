@@ -19,7 +19,7 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   `fixtures/iamvulnerable/<scenario>/`, then runs `terraform destroy` and
   removes the LocalStack container. A second mode handles true-negative
   environments (`tn-clean-NNN`) from `terraform/tn-environments/`, writing
-  fixtures to `fixtures/tn-environments/<tn-name>/`. Invoked by
+  fixtures to `fixtures/iamvulnerable/<tn-name>/`. Invoked by
   `make capture-scenario SCENARIO=<name>`. Real AWS capture and
   multi-scenario orchestration are tracked as future work in
   `docs/benchmark_methodology.md` §7.1.
@@ -107,6 +107,13 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `internal/benchmark/iamvulnerable.go` `ScenarioManifest` struct updated
+  to match the SCENARIO schema defined in `docs/ARCHITECTURE.md` (lines
+  285-296). The struct previously omitted `starting_principal_arn` and
+  `is_true_negative`, and the `chainLengthClass` / `scenarioCategory`
+  helper functions did not recognize the `none` values used by
+  true-negative environments. The manifest loader and the helper functions
+  now populate and recognize them.
 - External tool adapters in `internal/benchmark/` updated to match the
   actual command-line contracts of the underlying binaries. The PMapper
   adapter now invokes
