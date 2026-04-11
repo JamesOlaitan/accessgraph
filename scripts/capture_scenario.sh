@@ -279,6 +279,8 @@ echo "--- capturing fixtures ---" >&2
 mkdir -p "$FIXTURE_DIR"
 
 # 1. AccessGraph IAM export (host binary).
+# Output path per docs/benchmark_methodology.md §7.1;
+# must match internal/benchmark.IAMExportFilename.
 echo "  [1/4] AccessGraph IAM export..." >&2
 AWS_ACCESS_KEY_ID=test \
 AWS_SECRET_ACCESS_KEY=test \

@@ -21,6 +21,10 @@ import (
 	"github.com/JamesOlaitan/accessgraph/internal/store"
 )
 
+// IAMExportFilename is the canonical filename for an exported IAM configuration
+// inside a scenario fixture directory, per docs/benchmark_methodology.md §7.1.
+const IAMExportFilename = "iam_export.json"
+
 // Input holds the parameters for the benchmark pipeline.
 //
 // Fields:
@@ -113,7 +117,7 @@ func RunBenchmark(ctx context.Context, in Input, w io.Writer) error {
 	// AccessGraph self-evaluation pass.
 	if ToolListContains(selectedTools, model.ToolAccessGraph) {
 		for _, sc := range scenarios {
-			agResult, agErr := runAccessGraphOnScenario(ctx, sc, in.ScenariosDir, in.Cfg)
+			agResult, agErr := RunAccessGraphOnScenario(ctx, sc, in.ScenariosDir, in.Cfg)
 			if agErr != nil {
 				fmt.Fprintf(w, "warning: accessgraph scenario %q: %v (skipping)\n", sc.ID, agErr)
 				continue
@@ -179,8 +183,8 @@ func RunBenchmark(ctx context.Context, in Input, w io.Writer) error {
 	}
 }
 
-// runAccessGraphOnScenario runs the full ingest+analyze pipeline for one scenario.
-func runAccessGraphOnScenario(
+// RunAccessGraphOnScenario runs the full ingest+analyze pipeline for one scenario.
+func RunAccessGraphOnScenario(
 	ctx context.Context,
 	sc *model.Scenario,
 	scenariosDir string,
@@ -312,31 +316,10 @@ func classifyDetectionInternal(br *model.BlastRadiusReport, sc *model.Scenario, 
 }
 
 func loadScenarioIAMData(scenarioDir string) ([]byte, error) {
-	entries, err := os.ReadDir(scenarioDir)
+	path := filepath.Join(scenarioDir, IAMExportFilename)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading scenario directory %q: %w", scenarioDir, err)
-	}
-	var candidates []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if name == "manifest.json" || !strings.HasSuffix(name, ".json") {
-			continue
-		}
-		candidates = append(candidates, name)
-	}
-	if len(candidates) == 0 {
-		return nil, fmt.Errorf("no IAM export JSON file found in %q", scenarioDir)
-	}
-	if len(candidates) > 1 {
-		return nil, fmt.Errorf("ambiguous IAM export in %q: expected exactly one JSON file, found: %s",
-			scenarioDir, strings.Join(candidates, ", "))
-	}
-	data, err := os.ReadFile(filepath.Join(scenarioDir, candidates[0]))
-	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", candidates[0], err)
+		return nil, fmt.Errorf("%s not found in scenario directory %q: %w", IAMExportFilename, scenarioDir, err)
 	}
 	return data, nil
 }

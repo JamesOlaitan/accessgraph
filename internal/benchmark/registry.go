@@ -65,7 +65,7 @@ func (r *toolScenarioRunner) RunScenario(ctx context.Context, scenario *model.Sc
 //
 // The registry does not include model.ToolAccessGraph because the AccessGraph
 // self-evaluation path is handled separately (it runs in-process via
-// runAccessGraphOnScenario in pipeline.go).
+// RunAccessGraphOnScenario in pipeline.go).
 //
 // The returned map is safe to read concurrently after construction; the caller
 // must not mutate it.

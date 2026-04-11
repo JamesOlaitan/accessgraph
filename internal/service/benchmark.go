@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/JamesOlaitan/accessgraph/internal/benchmark"
+	"github.com/JamesOlaitan/accessgraph/internal/config"
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 	"github.com/JamesOlaitan/accessgraph/internal/report"
 	"github.com/JamesOlaitan/accessgraph/internal/store"
@@ -23,6 +24,7 @@ type benchmarkFacade struct {
 	aggregator benchmark.Aggregator
 	ds         store.DataStore
 	renderers  map[string]report.Renderer
+	cfg        *config.Config
 }
 
 // Compile-time assertion that *benchmarkFacade satisfies BenchmarkFacade.
@@ -34,12 +36,14 @@ func NewBenchmarkFacade(
 	aggregator benchmark.Aggregator,
 	ds store.DataStore,
 	renderers map[string]report.Renderer,
+	cfg *config.Config,
 ) *benchmarkFacade {
 	return &benchmarkFacade{
 		runners:    runners,
 		aggregator: aggregator,
 		ds:         ds,
 		renderers:  renderers,
+		cfg:        cfg,
 	}
 }
 
@@ -67,13 +71,11 @@ func (f *benchmarkFacade) Run(ctx context.Context, runID, scenarioDir string, to
 	for _, toolName := range tools {
 		runner, ok := f.runners[toolName]
 		if !ok {
-			// Tool not in registry — skip silently (tool not configured).
 			continue
 		}
 		for _, sc := range scenarios {
 			result, runErr := runner.RunScenario(ctx, sc)
 			if runErr != nil {
-				// Non-fatal: log and skip.
 				continue
 			}
 			result.ID = uuid.NewString()
@@ -83,6 +85,21 @@ func (f *benchmarkFacade) Run(ctx context.Context, runID, scenarioDir string, to
 			result.RunAt = time.Now().UTC()
 			if err := f.ds.SaveBenchmarkResult(ctx, result); err != nil {
 				return fmt.Errorf("benchmarkFacade.Run: save result for tool %q scenario %q: %w", toolName, sc.ID, err)
+			}
+		}
+	}
+
+	// AccessGraph in-process self-evaluation.
+	if benchmark.ToolListContains(tools, model.ToolAccessGraph) {
+		for _, sc := range scenarios {
+			agResult, agErr := benchmark.RunAccessGraphOnScenario(ctx, sc, scenarioDir, f.cfg)
+			if agErr != nil {
+				continue
+			}
+			agResult.RunID = runID
+			agResult.ResultID = model.ComputeResultID(runID, agResult.ScenarioID, agResult.ToolName)
+			if err := f.ds.SaveBenchmarkResult(ctx, agResult); err != nil {
+				return fmt.Errorf("benchmarkFacade.Run: save accessgraph result for scenario %q: %w", sc.ID, err)
 			}
 		}
 	}

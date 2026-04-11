@@ -42,7 +42,7 @@ func RunBenchmark(ctx context.Context, in BenchmarkInput, w io.Writer) error {
 	registry := report.NewRendererRegistry()
 	runners := benchmark.NewScenarioRegistry(benchmark.ToolConfig{}, nil)
 
-	facade := NewBenchmarkFacade(runners, benchmark.NewAggregator(), ds, registry)
+	facade := NewBenchmarkFacade(runners, benchmark.NewAggregator(), ds, registry, in.Cfg)
 
 	tools := benchmark.ParseToolList(in.Tools)
 	if len(tools) == 0 {

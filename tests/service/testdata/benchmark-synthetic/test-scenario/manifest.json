@@ -1,0 +1,12 @@
+{
+  "name": "test-scenario",
+  "description": "Synthetic scenario for service-layer benchmark regression test.",
+  "chain_length_class": "simple",
+  "expected_attack_path": [
+    "arn:aws:iam::123456789012:user/test-user",
+    "arn:aws:iam::123456789012:role/admin"
+  ],
+  "starting_principal_arn": "arn:aws:iam::123456789012:user/test-user",
+  "category": "role_trust",
+  "is_true_negative": false
+}

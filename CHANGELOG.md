@@ -107,6 +107,23 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `internal/service/benchmark.go` `benchmarkFacade.Run` updated to include
+  the AccessGraph self-evaluation step specified in
+  `docs/ARCHITECTURE.md` §12 step 5c. Previously the facade iterated
+  external-tool runners and stopped; the call graph in the architecture
+  document has the facade also invoking `RunAccessGraphOnScenario` for
+  each scenario after the external-tool loop. The function existed in
+  `internal/benchmark/pipeline.go` and was unit-tested but was not
+  reachable from the CLI path. `internal/benchmark/pipeline.go`
+  `loadScenarioIAMData` updated to read the IAM export fixture by its
+  canonical filename (`iam_export.json`) per
+  `docs/benchmark_methodology.md` §7.1. The previous implementation
+  searched for "one non-manifest JSON file" in the scenario directory,
+  which produced an ambiguous-file error in directories containing
+  multiple tool fixtures. The canonical filename is shared through
+  `benchmark.IAMExportFilename`. `tests/service/benchmark_test.go`
+  added, exercising the full CLI-to-aggregator chain with `--tools
+  accessgraph` against a self-contained multi-file fixture directory.
 - `internal/benchmark/iamvulnerable.go` `ScenarioManifest` struct updated
   to match the SCENARIO schema defined in `docs/ARCHITECTURE.md` (lines
   285-296). The struct previously omitted `starting_principal_arn` and

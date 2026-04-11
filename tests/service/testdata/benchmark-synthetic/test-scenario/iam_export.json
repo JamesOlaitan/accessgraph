@@ -1,0 +1,64 @@
+{
+  "account_id": "123456789012",
+  "users": [
+    {
+      "UserName": "test-user",
+      "UserId": "AIDATEST000001",
+      "Arn": "arn:aws:iam::123456789012:user/test-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [
+        {
+          "PolicyName": "assume-admin",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Resource": "arn:aws:iam::123456789012:role/admin"
+              }
+            ]
+          }
+        }
+      ],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "admin",
+      "RoleId": "AROATEST000001",
+      "Arn": "arn:aws:iam::123456789012:role/admin",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "sts:AssumeRole",
+            "Principal": {
+              "AWS": "arn:aws:iam::123456789012:user/test-user"
+            }
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": [
+        {
+          "PolicyName": "full-access",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "groups": [],
+  "policies": []
+}
