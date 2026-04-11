@@ -15,6 +15,15 @@ import (
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
+// privescFindingTitle is the exact finding title produced by PMapper's
+// gen_privesc_findings() in principalmapper/analysis/find_risks.py. The parser
+// filters on this title because pmapper analysis --output-type json bundles
+// privilege escalation findings alongside unrelated finding types (circular
+// access, overprivileged functions, MFA issues, etc.) that may mention the same
+// principals incidentally. Extracting principal references from non-privesc
+// findings would conflate "principal mentioned" with "escalation detected."
+const privescFindingTitle = "IAM Principal Can Escalate Privileges"
+
 // principalRefRe matches IAM principal references in PMapper's analysis
 // description text. PMapper emits principals as type/name pairs such as
 // "user/escalation-user" or "role/admin-role".
@@ -68,11 +77,17 @@ func (a *pmapperAdapter) Invoke(ctx context.Context, binaryPath, scenarioDir str
 // Parse interprets PMapper's JSON analysis output to determine whether the
 // expected attack path was detected.
 //
-// PMapper's analysis output contains a `findings` array where each finding
-// has a `description` field with principal references in type/name format
-// (e.g., "user/escalation-user", "role/admin-role"). The parser extracts
-// these references, constructs full ARNs using the account ID from the
-// analysis output, and checks for intersection with ExpectedAttackPath.
+// PMapper's analysis output contains a flat findings array with multiple finding
+// types. The parser filters to only findings with title privescFindingTitle
+// ("IAM Principal Can Escalate Privileges") before extracting principal
+// references. Other finding types (circular access, overprivileged instance
+// profiles, MFA issues) may mention the same principals incidentally without
+// indicating a detected escalation path.
+//
+// From each retained finding, the parser extracts principal references in
+// type/name format (e.g., "user/escalation-user", "role/admin-role"),
+// constructs full ARNs using the account ID from the analysis output, and
+// checks for intersection with ExpectedAttackPath.
 //
 // Returns true if any constructed ARN matches any element of ExpectedAttackPath.
 func (a *pmapperAdapter) Parse(stdout []byte, expected model.Scenario) (bool, error) {
@@ -83,6 +98,9 @@ func (a *pmapperAdapter) Parse(stdout []byte, expected model.Scenario) (bool, er
 
 	principalARNs := make(map[string]bool)
 	for _, f := range analysis.Findings {
+		if f.Title != privescFindingTitle {
+			continue
+		}
 		refs := principalRefRe.FindAllString(f.Description, -1)
 		for _, ref := range refs {
 			arn := fmt.Sprintf("arn:aws:iam::%s:%s", analysis.Account, ref)

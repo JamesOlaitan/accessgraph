@@ -282,6 +282,69 @@ func TestPMapperAdapterParse(t *testing.T) {
 	}
 }
 
+// TestPMapperParseFiltersByTitle verifies that the parser ignores principals
+// mentioned in non-privesc findings. Without the title filter, the circular
+// access finding below would produce a false TP because it mentions
+// user/target-principal, which is in ExpectedAttackPath.
+func TestPMapperParseFiltersByTitle(t *testing.T) {
+	stdout := mustMarshal(t, pmapperAnalysisStub{
+		Account: "123456789012",
+		Findings: []pmapperFindingStub{
+			{
+				Title:       "IAM Principal Can Escalate Privileges",
+				Severity:    "High",
+				Description: "* user/unrelated-attacker can escalate privileges by accessing role/unrelated-target\n",
+			},
+			{
+				Title:       "IAM Principals with Circular Access",
+				Severity:    "Low",
+				Description: "* user/target-principal -> role/target-role -> user/target-principal\n",
+			},
+		},
+	})
+
+	adapter := benchmark.NewPMapperAdapter()
+	detected, err := adapter.Parse(stdout, model.Scenario{
+		ExpectedAttackPath: []string{
+			"arn:aws:iam::123456789012:user/target-principal",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if detected {
+		t.Error("parser extracted principals from non-privesc finding; expected FN, got TP")
+	}
+}
+
+// TestPMapperParsePrivescMatch verifies that the parser still correctly detects
+// principals mentioned in privesc findings after the title filter was added.
+func TestPMapperParsePrivescMatch(t *testing.T) {
+	stdout := mustMarshal(t, pmapperAnalysisStub{
+		Account: "123456789012",
+		Findings: []pmapperFindingStub{
+			{
+				Title:       "IAM Principal Can Escalate Privileges",
+				Severity:    "High",
+				Description: "* user/escalation-user can escalate privileges by accessing role/admin-role\n",
+			},
+		},
+	})
+
+	adapter := benchmark.NewPMapperAdapter()
+	detected, err := adapter.Parse(stdout, model.Scenario{
+		ExpectedAttackPath: []string{
+			"arn:aws:iam::123456789012:user/escalation-user",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if !detected {
+		t.Error("parser failed to detect principal in privesc finding; expected TP, got FN")
+	}
+}
+
 // checkovResultStub mirrors the unexported checkovResult hierarchy.
 type checkovResultStub struct {
 	Results checkovResultsStub `json:"results"`

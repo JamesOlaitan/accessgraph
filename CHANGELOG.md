@@ -150,6 +150,19 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   rationale) for the full scoping rationale.
 
 ### Fixed
+- `internal/benchmark/pmapper.go` parser: restricted principal reference
+  extraction to findings with title "IAM Principal Can Escalate Privileges".
+  The previous implementation extracted principal references from every
+  finding in PMapper's analysis output, including circular access,
+  overprivileged instance profile, and IAM MFA findings that mention
+  principals incidentally without indicating a detected privilege
+  escalation path. This conflation could cause the parser to record a
+  match when PMapper had not actually detected the expected escalation,
+  inflating measured recall. The filter matches the exact title produced
+  by PMapper's `gen_privesc_findings()` in
+  `principalmapper/analysis/find_risks.py`. Parser unit tests added to
+  lock in the filter behavior. Methodology §4.3 PMapper updated to
+  document the filter and a known limitation regarding pathed IAM names.
 - `docs/benchmark_methodology.md` Section 3.4, Section 3.5, and Section 4.1
   footnote: the pre-existing claim that the Steampipe and CloudSploit
   adapters used `CombinedOutput()` was incorrect. Both adapters actually

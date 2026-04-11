@@ -497,13 +497,17 @@ Output field inspected: JSON output from `pmapper --account <account-id> analysi
 
 The output is parsed into a `pmapperAnalysis` struct containing `Account string` (`json:"account"`) and `Findings []pmapperFinding` (`json:"findings"`). Each `pmapperFinding` has `Title string`, `Severity string`, and `Description string` fields. PMapper's analysis output is a high-level findings report, not structured graph paths. Principal references appear in the `Description` field as type/name pairs (e.g., `user/escalation-user`, `role/admin-role`).
 
-The adapter extracts all principal references matching the pattern `(user|role|group)/[\w.+=,@-]+` from each finding's description, reconstructs full ARNs as `arn:aws:iam::<account>:<ref>` using the top-level `account` field, and checks for intersection with `ExpectedAttackPath` elements.
+The adapter filters the findings array to only those with title `"IAM Principal Can Escalate Privileges"` -- the exact title that PMapper's `gen_privesc_findings()` function produces for privilege escalation detections. Other finding types that `pmapper analysis` may emit (circular access, overprivileged instance profile, IAM users without MFA, and others) are excluded from the extraction loop because they may mention principals incidentally without indicating a detected escalation path.
+
+From each retained finding, the adapter extracts principal references matching the pattern `(user|role|group)/[\w.+=,@-]+`, reconstructs full ARNs as `arn:aws:iam::<account>:<ref>` using the top-level `account` field from the analysis output, and checks for intersection with `ExpectedAttackPath` elements.
 
 **TP:** Any reconstructed principal ARN exactly matches any element of `ExpectedAttackPath`.
 
 **FN:** No reconstructed principal ARN matches any element of `ExpectedAttackPath`.
 
 **FP:** Not classified by the external tool dispatch logic. See Section 5.3 for false positive rate (FPR) limitations.
+
+**Known limitation:** PMapper's `Node.searchable_name()` method collapses pathed IAM names (e.g., `arn:aws:iam::acct:user/path/to/name`) to the first/last component form (`user/name`), dropping intermediate path segments. The IAMVulnerable scenarios do not use pathed IAM names, so this does not affect benchmark results, but users running AccessGraph against production AWS accounts with pathed IAM names should be aware that the PMapper-analysis-based detection criterion may miss matches where the expected path ARN contains intermediate path segments.
 
 ---
 
