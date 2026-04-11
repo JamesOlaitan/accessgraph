@@ -92,8 +92,8 @@ func TestExportIAMSuccess(t *testing.T) {
 				},
 				Policies: []iamtypes.ManagedPolicyDetail{
 					{
-						PolicyName: aws.String("ReadOnlyAccess"),
-						Arn:        aws.String("arn:aws:iam::aws:policy/ReadOnlyAccess"),
+						PolicyName: aws.String("custom-readonly"),
+						Arn:        aws.String("arn:aws:iam::111111111111:policy/custom-readonly"),
 						PolicyVersionList: []iamtypes.PolicyVersion{
 							{VersionId: aws.String("v1"), IsDefaultVersion: true, Document: aws.String(policyDoc)},
 						},
@@ -189,7 +189,7 @@ func TestExportIAMSuccess(t *testing.T) {
 	if len(parsed.Roles[0].RolePolicyList) != 1 {
 		t.Errorf("unexpected RolePolicyList count: %d", len(parsed.Roles[0].RolePolicyList))
 	}
-	if len(parsed.Policies) != 1 || parsed.Policies[0].PolicyArn != "arn:aws:iam::aws:policy/ReadOnlyAccess" {
+	if len(parsed.Policies) != 1 || parsed.Policies[0].PolicyArn != "arn:aws:iam::111111111111:policy/custom-readonly" {
 		t.Errorf("unexpected policies: %+v", parsed.Policies)
 	}
 	if parsed.Policies[0].PolicyDocument == nil {
@@ -377,5 +377,67 @@ func TestExportIAMURLEncodedPolicyDocument(t *testing.T) {
 	}
 	if parsed.Roles[0].AssumeRolePolicyDocument.Version != "2012-10-17" {
 		t.Errorf("decoded Version = %q, want %q", parsed.Roles[0].AssumeRolePolicyDocument.Version, "2012-10-17")
+	}
+}
+
+// TestExportFiltersAWSManagedPolicies verifies that AWS managed policies
+// (ARN prefix arn:aws:iam::aws:policy/) are excluded from the export while
+// customer-managed policies are preserved.
+func TestExportFiltersAWSManagedPolicies(t *testing.T) {
+	policyDoc := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}`
+
+	mock := &mockIAM{
+		pages: []*iam.GetAccountAuthorizationDetailsOutput{
+			{
+				Policies: []iamtypes.ManagedPolicyDetail{
+					{
+						PolicyName: aws.String("ReadOnlyAccess"),
+						Arn:        aws.String("arn:aws:iam::aws:policy/ReadOnlyAccess"),
+						PolicyVersionList: []iamtypes.PolicyVersion{
+							{VersionId: aws.String("v1"), IsDefaultVersion: true, Document: aws.String(policyDoc)},
+						},
+					},
+					{
+						PolicyName: aws.String("custom-admin"),
+						Arn:        aws.String("arn:aws:iam::111111111111:policy/custom-admin"),
+						PolicyVersionList: []iamtypes.PolicyVersion{
+							{VersionId: aws.String("v1"), IsDefaultVersion: true, Document: aws.String(policyDoc)},
+						},
+					},
+				},
+				IsTruncated: false,
+			},
+		},
+	}
+
+	exp := &iamexport.Exporter{
+		IAM: mock,
+		STS: &mockSTS{account: "111111111111"},
+	}
+
+	var buf bytes.Buffer
+	stats, err := exp.Export(context.Background(), &buf)
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	if stats.Policies != 1 {
+		t.Errorf("stats.Policies = %d, want 1 (only customer-managed)", stats.Policies)
+	}
+
+	var parsed struct {
+		Policies []struct {
+			PolicyName string `json:"PolicyName"`
+			PolicyARN  string `json:"PolicyArn"`
+		} `json:"policies"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(parsed.Policies) != 1 {
+		t.Fatalf("policies count = %d, want 1", len(parsed.Policies))
+	}
+	if parsed.Policies[0].PolicyName != "custom-admin" {
+		t.Errorf("expected customer-managed policy, got %q", parsed.Policies[0].PolicyName)
 	}
 }

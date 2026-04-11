@@ -8,12 +8,23 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
+
+// awsManagedPolicyPrefix is the ARN prefix for AWS managed policies.
+// GetAccountAuthorizationDetails returns all AWS managed policies (~1228)
+// regardless of whether any principal in the account references them.
+// These are filtered at export time because the benchmark's sensitivity
+// detection matches admin-equivalent resources by ARN name pattern, not
+// by policy document content. Filtering also sidesteps a parser limitation
+// around single-object Statement form that appears in some AWS managed
+// policy documents.
+const awsManagedPolicyPrefix = "arn:aws:iam::aws:policy/"
 
 // IAMAPI is the subset of the IAM client API used by the exporter.
 type IAMAPI interface {
@@ -103,10 +114,10 @@ func (e *Exporter) Export(ctx context.Context, w io.Writer) (Stats, error) {
 	}
 
 	return Stats{
-		Users:    len(users),
-		Roles:    len(roles),
-		Groups:   len(groups),
-		Policies: len(policies),
+		Users:    len(export.Users),
+		Roles:    len(export.Roles),
+		Groups:   len(export.Groups),
+		Policies: len(export.Policies),
 	}, nil
 }
 
@@ -203,6 +214,9 @@ func buildExport(
 	}
 
 	for _, p := range policies {
+		if strings.HasPrefix(aws.ToString(p.Arn), awsManagedPolicyPrefix) {
+			continue
+		}
 		ep, err := convertPolicy(p)
 		if err != nil {
 			return nil, fmt.Errorf("convert policy %s: %w", aws.ToString(p.PolicyName), err)

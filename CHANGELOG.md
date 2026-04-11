@@ -107,6 +107,17 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `internal/iamexport/exporter.go` now filters AWS managed policies from
+  the exported IAM configuration. `GetAccountAuthorizationDetails` returns
+  all AWS managed policies regardless of whether any principal in the
+  account references them. The benchmark's sensitivity detection matches
+  admin-equivalent resources by ARN name pattern, not by policy document
+  content, so AWS managed policies do not need to be present in scenario
+  fixtures for detection to work correctly. Filtering at export time
+  reduces fixture size from approximately 3 MB to under 100 KB per
+  scenario and sidesteps a parser limitation around single-object
+  `Statement` form that appears in some AWS managed policy documents.
+  Customer-managed policies are preserved.
 - `internal/service/benchmark.go` `benchmarkFacade.Run` updated to include
   the AccessGraph self-evaluation step specified in
   `docs/ARCHITECTURE.md` §12 step 5c. Previously the facade iterated
