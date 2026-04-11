@@ -8,6 +8,15 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `docs/ARCHITECTURE.md` §6 subsection "Admin-Equivalent Policies as
+  Resource Nodes" documenting the design decision that the parser creates
+  a Resource node for any policy satisfying the admin-equivalence criteria
+  in `docs/findings_schema.md` §1.1. The Resource carries the policy ARN
+  and is marked sensitive, allowing BFS attack paths to terminate at it
+  and the benchmark matcher to find the path by ARN. This aligns the
+  graph model with `docs/benchmark_methodology.md` §4.1, which uses
+  `arn:aws:iam::aws:policy/AdministratorAccess` as the terminal element
+  of `expected_path_nodes`.
 - `scripts/capture_scenario.sh`: single-scenario capture orchestration for
   the IAMVulnerable benchmark. Clones the IAMVulnerable repository at the
   pinned commit, copies a single scenario's `.tf` file plus `sre.tf` (always

@@ -440,6 +440,17 @@ TN environment `scenario_id` values use the format `tn-clean-NNN` (e.g., `tn-cle
 
 Precision/recall is computed separately for each `chain_length_class`. A tool that achieves 100% recall on `simple` paths but 0% on `multi_hop` paths is a compliance scanner limited to single-hop detection — this distinction is the primary research finding of this work.
 
+### Admin-Equivalent Policies as Resource Nodes
+
+The permission graph models IAM entities in three node types: Principals (users, roles, groups), Policies (managed and inline), and Resources (targets of non-wildcard permissions). Most IAMVulnerable scenarios grant wildcard permissions (`Resource: "*"`), which means the parser creates no Resource nodes for those permissions. Privilege escalation in these scenarios terminates at an admin-equivalent policy (the shared `privesc-sre-admin-policy` or, in the canonical case, `AdministratorAccess`).
+
+The benchmark's detection matcher (`classifyDetectionInternal`) determines TP by checking whether any BFS attack path terminates at a node whose ARN matches the terminal element of `expected_attack_path`. It performs this lookup against `snapshot.Resources` only, since Resources are the graph's representation of reachable targets. Without special handling, paths that terminate at a Policy node (rather than a Resource node) are invisible to the matcher, and every wildcard-permission scenario produces FN regardless of whether AccessGraph correctly discovered the escalation chain.
+
+To close this gap, the parser also creates a Resource node for any policy that satisfies the admin-equivalence criteria defined in `findings_schema.md` Section 1.1. The Resource node carries the policy's ARN and is marked `IsSensitive = true` by the sensitivity classifier. This allows the BFS to record an attack path terminating at the policy-as-resource, and the matcher to find the path by its ARN.
+
+The rationale: attaching an admin-equivalent policy to a principal confers administrative access. From a blast-radius perspective, the policy is a reachable sensitive target in the same way that an S3 bucket holding secrets or a KMS key is a reachable sensitive target. The IAM-Deescalate paper and PMapper both model escalation paths as terminating at the admin policy; `benchmark_methodology.md` Section 4.1's ground-truth example uses `arn:aws:iam::aws:policy/AdministratorAccess` as the terminal element of `expected_path_nodes`. Modeling admin-equivalent policies as Resources aligns AccessGraph's internal representation with the benchmark's ground truth and with the other tools it is compared against.
+
+This design does not affect non-benchmark usage. The analysis report's blast-radius metrics (`reachable_resource_count`, `pct_environment_reachable`) include admin-equivalent policy nodes in the resource count, which is the correct behavior: an attacker who reaches AdministratorAccess has reached the most sensitive target in the environment.
 
 ---
 
