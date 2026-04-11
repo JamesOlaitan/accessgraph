@@ -247,6 +247,28 @@ See `docs/benchmark_methodology.md` for the full methodology specification,
 including detection matching rules, confidence interval computation, timeout
 handling, and tool version pinning.
 
+### Capturing benchmark fixtures against LocalStack
+
+For development and integration testing without AWS spend,
+`scripts/capture_scenario.sh` deploys a single scenario against LocalStack,
+captures all four tool fixtures (AccessGraph IAM export, PMapper graph storage,
+Prowler json-ocsf output, Checkov Terraform scan), and tears down the
+deployment. The script handles two modes: IAMVulnerable privilege escalation
+scenarios (privesc*) and true-negative environments (tn-clean-NNN).
+
+```
+./scripts/capture_scenario.sh privesc1-CreateNewPolicyVersion
+./scripts/capture_scenario.sh tn-clean-001
+make capture-scenario SCENARIO=privesc1-CreateNewPolicyVersion
+```
+
+Captured fixtures are written to `fixtures/iamvulnerable/<scenario>/` or
+`fixtures/tn-environments/<tn-name>/`. Requires Docker, Terraform, a built
+binary (`make build`), and the benchmark Docker image (`make docker-build`).
+LocalStack fixtures are suitable for development iteration but are not
+canonical; see `docs/benchmark_methodology.md` Section 7.1 for the canonical
+live-AWS capture workflow.
+
 ## Project Structure
 
 ```

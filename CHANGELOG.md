@@ -8,6 +8,21 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `scripts/capture_scenario.sh`: single-scenario capture orchestration for
+  the IAMVulnerable benchmark. Clones the IAMVulnerable repository at the
+  pinned commit, copies a single scenario's `.tf` file plus `sre.tf` (always
+  included per `docs/benchmark_methodology.md` §2.3) and `variables.tf` to a
+  temporary working directory, overrides the AWS provider with LocalStack
+  endpoints, runs `terraform apply`, captures four per-tool fixtures
+  (AccessGraph IAM export, PMapper graph storage, Prowler json-ocsf output,
+  Checkov Terraform scan), writes them to
+  `fixtures/iamvulnerable/<scenario>/`, then runs `terraform destroy` and
+  removes the LocalStack container. A second mode handles true-negative
+  environments (`tn-clean-NNN`) from `terraform/tn-environments/`, writing
+  fixtures to `fixtures/tn-environments/<tn-name>/`. Invoked by
+  `make capture-scenario SCENARIO=<name>`. Real AWS capture and
+  multi-scenario orchestration are tracked as future work in
+  `docs/benchmark_methodology.md` §7.1.
 - New `accessgraph export-iam` subcommand that exports an AWS account's
   IAM configuration as JSON using the AWS SDK's
   GetAccountAuthorizationDetails API. The command paginates across all

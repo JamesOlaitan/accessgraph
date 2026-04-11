@@ -7,7 +7,7 @@ BIN_DIR  := bin
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS  := -ldflags "-X $(MODULE)/cmd/accessgraph/commands.Version=$(VERSION)"
 
-.PHONY: all build test test-integration lint fmt vet clean demo tidy audit docker-build docker-up docker-down smoke-export-iam
+.PHONY: all build test test-integration lint fmt vet clean demo tidy audit docker-build docker-up docker-down smoke-export-iam capture-scenario
 
 all: build
 
@@ -75,6 +75,10 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+capture-scenario:
+	@test -n "$(SCENARIO)" || (echo "Usage: make capture-scenario SCENARIO=<scenario-name>" && exit 1)
+	./scripts/capture_scenario.sh $(SCENARIO)
 
 ## help: Print this message.
 help:
