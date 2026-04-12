@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/google/uuid"
 
 	"github.com/JamesOlaitan/accessgraph/internal/benchmark"
 	"github.com/JamesOlaitan/accessgraph/internal/config"
+	"github.com/JamesOlaitan/accessgraph/internal/model"
 	"github.com/JamesOlaitan/accessgraph/internal/report"
 	"github.com/JamesOlaitan/accessgraph/internal/store"
 )
@@ -40,7 +42,10 @@ func RunBenchmark(ctx context.Context, in BenchmarkInput, w io.Writer) error {
 
 	runID := uuid.NewString()
 	registry := report.NewRendererRegistry()
-	runners := benchmark.NewScenarioRegistry(benchmark.ToolConfig{}, nil)
+	scenariosRoot := in.ScenariosDir
+	runners := benchmark.NewScenarioRegistry(benchmark.ToolConfig{}, func(sc *model.Scenario) string {
+		return filepath.Join(scenariosRoot, benchmark.ScenarioDirName(sc.ID))
+	})
 
 	facade := NewBenchmarkFacade(runners, benchmark.NewAggregator(), ds, registry, in.Cfg)
 

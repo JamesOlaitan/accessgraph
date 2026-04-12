@@ -276,6 +276,13 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   rationale) for the full scoping rationale.
 
 ### Fixed
+- `internal/service/benchmark_run.go` `RunBenchmark` now passes a scenario
+  directory resolver to `NewScenarioRegistry` instead of `nil`. The
+  previous `nil` caused every `RunScenario` invocation to pass an empty
+  scenario directory to `RunTool`, which returned `ErrInvalidInput` for
+  every external tool evaluation. The resolver joins the benchmark's
+  `--scenarios` root with the directory name derived from the scenario ID
+  using `benchmark.ScenarioDirName`.
 - `internal/benchmark/pmapper.go` parser: restricted principal reference
   extraction to findings with title "IAM Principal Can Escalate Privileges".
   The previous implementation extracted principal references from every

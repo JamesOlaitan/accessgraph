@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/JamesOlaitan/accessgraph/internal/benchmark"
 	"github.com/JamesOlaitan/accessgraph/internal/config"
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 	"github.com/JamesOlaitan/accessgraph/internal/service"
@@ -57,5 +58,34 @@ func TestBenchmarkAccessGraphSelfEval(t *testing.T) {
 	}
 	if !found {
 		t.Error("no result with tool_name=accessgraph found in results")
+	}
+}
+
+// TestScenarioRegistryDirResolution verifies that constructing a
+// NewScenarioRegistry with a non-nil scenarioDirFn correctly resolves
+// scenario directories. The closure captures the scenarios root and
+// joins it with the directory name derived from the scenario ID.
+func TestScenarioRegistryDirResolution(t *testing.T) {
+	scenariosRoot := "/tmp/benchmark/scenarios"
+
+	var captured string
+	dirFn := func(sc *model.Scenario) string {
+		captured = filepath.Join(scenariosRoot, benchmark.ScenarioDirName(sc.ID))
+		return captured
+	}
+
+	registry := benchmark.NewScenarioRegistry(benchmark.ToolConfig{}, dirFn)
+	runner, ok := registry[model.ToolProwler]
+	if !ok {
+		t.Fatal("expected Prowler runner in registry")
+	}
+
+	sc := &model.Scenario{ID: "iamvulnerable-privesc-iam-CreateNewPolicyVersion"}
+	// RunScenario will fail (no real tool binary), but the dirFn is invoked.
+	_, _ = runner.RunScenario(context.Background(), sc)
+
+	want := filepath.Join(scenariosRoot, "privesc-iam-CreateNewPolicyVersion")
+	if captured != want {
+		t.Errorf("scenarioDirFn resolved %q, want %q", captured, want)
 	}
 }
