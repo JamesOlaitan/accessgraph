@@ -7,7 +7,7 @@ BIN_DIR  := bin
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS  := -ldflags "-X $(MODULE)/cmd/accessgraph/commands.Version=$(VERSION)"
 
-.PHONY: all build test test-integration lint fmt vet clean demo tidy audit docker-build docker-up docker-down smoke-export-iam capture-scenario
+.PHONY: all build test test-integration lint fmt vet clean demo tidy audit docker-build docker-up docker-down smoke-export-iam capture-scenario reproduce-fixtures
 
 all: build
 
@@ -79,6 +79,18 @@ docker-down:
 capture-scenario:
 	@test -n "$(SCENARIO)" || (echo "Usage: make capture-scenario SCENARIO=<scenario-name>" && exit 1)
 	./scripts/capture_scenario.sh $(SCENARIO)
+
+## reproduce-fixtures: Reproduce the benchmark comparison table from committed fixtures.
+## Requires only Go and Python 3. No external tools, AWS credentials, or Docker needed.
+reproduce-fixtures:
+	@mkdir -p build $(BIN_DIR)
+	go build -tags integration $(LDFLAGS) -o $(BIN_DIR)/$(BINARY)-int $(CMD_DIR)
+	./$(BIN_DIR)/$(BINARY)-int benchmark \
+		--scenarios fixtures/iamvulnerable \
+		--tools accessgraph,pmapper,prowler,checkov \
+		--db build/reproduce-fixtures.db \
+		--output json > build/reproduction-result.json
+	@python3 scripts/summarize_benchmark.py build/reproduction-result.json
 
 ## help: Print this message.
 help:
