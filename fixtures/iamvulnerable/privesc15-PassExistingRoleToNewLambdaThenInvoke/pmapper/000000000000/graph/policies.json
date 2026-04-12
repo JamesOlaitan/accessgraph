@@ -95500,24 +95500,6 @@
         }
     },
     {
-        "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
-        "name": "privesc-sre-admin-policy",
-        "policy_doc": {
-            "Statement": [
-                {
-                    "Action": [
-                        "iam:*",
-                        "ec2:*",
-                        "s3:*"
-                    ],
-                    "Effect": "Allow",
-                    "Resource": "*"
-                }
-            ],
-            "Version": "2012-10-17"
-        }
-    },
-    {
         "arn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
         "name": "privesc15-PassExistingRoleToNewLambdaThenInvoke",
         "policy_doc": {
@@ -95527,6 +95509,24 @@
                         "iam:PassRole",
                         "lambda:CreateFunction",
                         "lambda:InvokeFunction"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": "*"
+                }
+            ],
+            "Version": "2012-10-17"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+        "name": "privesc-sre-admin-policy",
+        "policy_doc": {
+            "Statement": [
+                {
+                    "Action": [
+                        "iam:*",
+                        "ec2:*",
+                        "s3:*"
                     ],
                     "Effect": "Allow",
                     "Resource": "*"

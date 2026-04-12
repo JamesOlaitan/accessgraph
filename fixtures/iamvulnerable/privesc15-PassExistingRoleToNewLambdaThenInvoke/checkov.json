@@ -1868,6 +1868,337 @@
                 }
             },
             {
+                "check_id": "CKV_AWS_274",
+                "bc_check_id": "BC_AWS_IAM_78",
+                "check_name": "Disallow IAM roles, users, and groups from using the AWS AdministratorAccess policy",
+                "check_result": {
+                    "result": "PASSED",
+                    "evaluated_keys": []
+                },
+                "code_block": [
+                    [
+                        10,
+                        "resource \"aws_iam_role\" \"privesc15-lambda-execution-role\" {\n"
+                    ],
+                    [
+                        11,
+                        "  name = \"privesc15-lambda-execution-role\"\n"
+                    ],
+                    [
+                        12,
+                        "\n"
+                    ],
+                    [
+                        13,
+                        "  assume_role_policy = jsonencode({\n"
+                    ],
+                    [
+                        14,
+                        "    Version = \"2012-10-17\"\n"
+                    ],
+                    [
+                        15,
+                        "    Statement = [\n"
+                    ],
+                    [
+                        16,
+                        "      {\n"
+                    ],
+                    [
+                        17,
+                        "        Effect = \"Allow\"\n"
+                    ],
+                    [
+                        18,
+                        "        Action = \"sts:AssumeRole\"\n"
+                    ],
+                    [
+                        19,
+                        "        Principal = {\n"
+                    ],
+                    [
+                        20,
+                        "          Service = \"lambda.amazonaws.com\"\n"
+                    ],
+                    [
+                        21,
+                        "        }\n"
+                    ],
+                    [
+                        22,
+                        "      },\n"
+                    ],
+                    [
+                        23,
+                        "    ]\n"
+                    ],
+                    [
+                        24,
+                        "  })\n"
+                    ],
+                    [
+                        25,
+                        "\n"
+                    ],
+                    [
+                        26,
+                        "  managed_policy_arns = [aws_iam_policy.privesc-sre-admin-policy.arn]\n"
+                    ],
+                    [
+                        27,
+                        "}\n"
+                    ]
+                ],
+                "file_path": "/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_abs_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "repo_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_line_range": [
+                    10,
+                    27
+                ],
+                "resource": "aws_iam_role.privesc15-lambda-execution-role",
+                "evaluations": null,
+                "check_class": "checkov.terraform.checks.resource.aws.IAMManagedAdminPolicy",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-iam-policies/bc-aws-274",
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf"
+            },
+            {
+                "check_id": "CKV_AWS_61",
+                "bc_check_id": "BC_AWS_IAM_45",
+                "check_name": "Ensure AWS IAM policy does not allow assume role permission across all services",
+                "check_result": {
+                    "result": "PASSED",
+                    "evaluated_keys": [
+                        "assume_role_policy"
+                    ]
+                },
+                "code_block": [
+                    [
+                        10,
+                        "resource \"aws_iam_role\" \"privesc15-lambda-execution-role\" {\n"
+                    ],
+                    [
+                        11,
+                        "  name = \"privesc15-lambda-execution-role\"\n"
+                    ],
+                    [
+                        12,
+                        "\n"
+                    ],
+                    [
+                        13,
+                        "  assume_role_policy = jsonencode({\n"
+                    ],
+                    [
+                        14,
+                        "    Version = \"2012-10-17\"\n"
+                    ],
+                    [
+                        15,
+                        "    Statement = [\n"
+                    ],
+                    [
+                        16,
+                        "      {\n"
+                    ],
+                    [
+                        17,
+                        "        Effect = \"Allow\"\n"
+                    ],
+                    [
+                        18,
+                        "        Action = \"sts:AssumeRole\"\n"
+                    ],
+                    [
+                        19,
+                        "        Principal = {\n"
+                    ],
+                    [
+                        20,
+                        "          Service = \"lambda.amazonaws.com\"\n"
+                    ],
+                    [
+                        21,
+                        "        }\n"
+                    ],
+                    [
+                        22,
+                        "      },\n"
+                    ],
+                    [
+                        23,
+                        "    ]\n"
+                    ],
+                    [
+                        24,
+                        "  })\n"
+                    ],
+                    [
+                        25,
+                        "\n"
+                    ],
+                    [
+                        26,
+                        "  managed_policy_arns = [aws_iam_policy.privesc-sre-admin-policy.arn]\n"
+                    ],
+                    [
+                        27,
+                        "}\n"
+                    ]
+                ],
+                "file_path": "/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_abs_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "repo_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_line_range": [
+                    10,
+                    27
+                ],
+                "resource": "aws_iam_role.privesc15-lambda-execution-role",
+                "evaluations": null,
+                "check_class": "checkov.terraform.checks.resource.aws.IAMRoleAllowAssumeFromAccount",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-iam-policies/bc-aws-iam-45",
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf"
+            },
+            {
+                "check_id": "CKV_AWS_60",
+                "bc_check_id": "BC_AWS_IAM_44",
+                "check_name": "Ensure IAM role allows only specific services or principals to assume it",
+                "check_result": {
+                    "result": "PASSED",
+                    "evaluated_keys": [
+                        "assume_role_policy"
+                    ]
+                },
+                "code_block": [
+                    [
+                        10,
+                        "resource \"aws_iam_role\" \"privesc15-lambda-execution-role\" {\n"
+                    ],
+                    [
+                        11,
+                        "  name = \"privesc15-lambda-execution-role\"\n"
+                    ],
+                    [
+                        12,
+                        "\n"
+                    ],
+                    [
+                        13,
+                        "  assume_role_policy = jsonencode({\n"
+                    ],
+                    [
+                        14,
+                        "    Version = \"2012-10-17\"\n"
+                    ],
+                    [
+                        15,
+                        "    Statement = [\n"
+                    ],
+                    [
+                        16,
+                        "      {\n"
+                    ],
+                    [
+                        17,
+                        "        Effect = \"Allow\"\n"
+                    ],
+                    [
+                        18,
+                        "        Action = \"sts:AssumeRole\"\n"
+                    ],
+                    [
+                        19,
+                        "        Principal = {\n"
+                    ],
+                    [
+                        20,
+                        "          Service = \"lambda.amazonaws.com\"\n"
+                    ],
+                    [
+                        21,
+                        "        }\n"
+                    ],
+                    [
+                        22,
+                        "      },\n"
+                    ],
+                    [
+                        23,
+                        "    ]\n"
+                    ],
+                    [
+                        24,
+                        "  })\n"
+                    ],
+                    [
+                        25,
+                        "\n"
+                    ],
+                    [
+                        26,
+                        "  managed_policy_arns = [aws_iam_policy.privesc-sre-admin-policy.arn]\n"
+                    ],
+                    [
+                        27,
+                        "}\n"
+                    ]
+                ],
+                "file_path": "/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_abs_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "repo_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf",
+                "file_line_range": [
+                    10,
+                    27
+                ],
+                "resource": "aws_iam_role.privesc15-lambda-execution-role",
+                "evaluations": null,
+                "check_class": "checkov.terraform.checks.resource.aws.IAMRoleAllowsPublicAssume",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-iam-policies/bc-aws-iam-44",
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": "/code/supplement_privesc15-PassExistingRoleToNewLambdaThenInvoke.tf"
+            },
+            {
                 "check_id": "CKV2_AWS_22",
                 "bc_check_id": "BC_AWS_IAM_67",
                 "check_name": "Ensure an IAM User does not have access to the console",
@@ -2029,11 +2360,11 @@
                         }
                     },
                     "evaluated_keys": [
+                        "managed_policy_arn",
+                        "managed_policy_arns/*",
                         "policy_arn",
                         "arn",
-                        "managed_policy_arn",
-                        "name",
-                        "managed_policy_arns/*"
+                        "name"
                     ]
                 },
                 "code_block": [
@@ -2399,8 +2730,8 @@
                         }
                     },
                     "evaluated_keys": [
-                        "policy/Statement[?(@/Effect == Allow)]/Action[*]",
                         "statement[?(@/effect == Allow)]/actions[*]",
+                        "policy/Statement[?(@/Effect == Allow)]/Action[*]",
                         "inline_policy/Statement[?(@/Effect == Allow)]/Action[*]"
                     ]
                 },
@@ -4005,8 +4336,8 @@
                         }
                     },
                     "evaluated_keys": [
-                        "policy/Statement[?(@/Effect == Allow)]/Action[*]",
                         "statement[?(@/effect == Allow)]/actions[*]",
+                        "policy/Statement[?(@/Effect == Allow)]/Action[*]",
                         "inline_policy/Statement[?(@/Effect == Allow)]/Action[*]"
                     ]
                 },
@@ -4132,11 +4463,11 @@
         "parsing_errors": []
     },
     "summary": {
-        "passed": 25,
+        "passed": 28,
         "failed": 14,
         "skipped": 0,
         "parsing_errors": 0,
-        "resource_count": 14,
+        "resource_count": 15,
         "checkov_version": "3.2.509"
     },
     "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"

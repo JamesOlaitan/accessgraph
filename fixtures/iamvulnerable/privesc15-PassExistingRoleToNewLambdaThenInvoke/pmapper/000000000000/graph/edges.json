@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "source": "arn:aws:iam::000000000000:user/privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
+        "destination": "arn:aws:iam::000000000000:role/privesc15-lambda-execution-role",
+        "reason": "can use Lambda to create a new function with arbitrary code, then pass and access",
+        "short_reason": "Lambda"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc15-PassExistingRoleToNewLambdaThenInvoke-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc15-lambda-execution-role",
+        "reason": "can use Lambda to create a new function with arbitrary code, then pass and access",
+        "short_reason": "Lambda"
+    }
+]

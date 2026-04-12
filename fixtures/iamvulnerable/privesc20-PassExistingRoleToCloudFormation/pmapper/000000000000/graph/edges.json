@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "source": "arn:aws:iam::000000000000:user/privesc20-PassExistingRoleToCloudFormation-user",
+        "destination": "arn:aws:iam::000000000000:role/privesc20-cf-execution-role",
+        "reason": "can create a stack in CloudFormation to access",
+        "short_reason": "Cloudformation"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc20-PassExistingRoleToCloudFormation-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc20-cf-execution-role",
+        "reason": "can create a stack in CloudFormation to access",
+        "short_reason": "Cloudformation"
+    }
+]

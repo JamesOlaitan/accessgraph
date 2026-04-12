@@ -95500,24 +95500,6 @@
         }
     },
     {
-        "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
-        "name": "privesc-sre-admin-policy",
-        "policy_doc": {
-            "Statement": [
-                {
-                    "Action": [
-                        "iam:*",
-                        "ec2:*",
-                        "s3:*"
-                    ],
-                    "Effect": "Allow",
-                    "Resource": "*"
-                }
-            ],
-            "Version": "2012-10-17"
-        }
-    },
-    {
         "arn": "arn:aws:iam::000000000000:policy/privesc3-CreateEC2WithExistingInstanceProfile",
         "name": "privesc3-CreateEC2WithExistingInstanceProfile",
         "policy_doc": {
@@ -95529,6 +95511,24 @@
                         "ec2:RunInstances",
                         "ec2:CreateKeyPair",
                         "ec2:AssociateIamInstanceProfile"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": "*"
+                }
+            ],
+            "Version": "2012-10-17"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+        "name": "privesc-sre-admin-policy",
+        "policy_doc": {
+            "Statement": [
+                {
+                    "Action": [
+                        "iam:*",
+                        "ec2:*",
+                        "s3:*"
                     ],
                     "Effect": "Allow",
                     "Resource": "*"

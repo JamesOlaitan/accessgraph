@@ -2,18 +2,8 @@
   "account_id": "000000000000",
   "users": [
     {
-      "UserName": "privesc-sre-user",
-      "UserId": "l9vu1q06f739bg8dyqyw",
-      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
-      "AttachedManagedPolicies": [],
-      "UserPolicies": [],
-      "GroupList": [
-        "privesc-sre-group"
-      ]
-    },
-    {
       "UserName": "privesc20-PassExistingRoleToCloudFormation-user",
-      "UserId": "cqxmzms2447hy8qv350y",
+      "UserId": "ewv2w6cr7xajn9g1qfc5",
       "Arn": "arn:aws:iam::000000000000:user/privesc20-PassExistingRoleToCloudFormation-user",
       "AttachedManagedPolicies": [
         {
@@ -23,12 +13,22 @@
       ],
       "UserPolicies": [],
       "GroupList": []
+    },
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "bajj10oizf8qfs75waq1",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
     }
   ],
   "roles": [
     {
       "RoleName": "privesc20-PassExistingRoleToCloudFormation-role",
-      "RoleId": "AROAQAAAAAAADTETWDTG5",
+      "RoleId": "AROAQAAAAAAALLNI66G5V",
       "Arn": "arn:aws:iam::000000000000:role/privesc20-PassExistingRoleToCloudFormation-role",
       "AssumeRolePolicyDocument": {
         "Statement": [
@@ -52,8 +52,32 @@
       "RolePolicyList": []
     },
     {
+      "RoleName": "privesc20-cf-execution-role",
+      "RoleId": "AROAQAAAAAAAOK45SFMZ6",
+      "Arn": "arn:aws:iam::000000000000:role/privesc20-cf-execution-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "cloudformation.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
       "RoleName": "privesc-sre-role",
-      "RoleId": "AROAQAAAAAAAFQCZIQQFS",
+      "RoleId": "AROAQAAAAAAAF4THQWBGH",
       "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
       "AssumeRolePolicyDocument": {
         "Statement": [
@@ -80,7 +104,7 @@
   "groups": [
     {
       "GroupName": "privesc-sre-group",
-      "GroupId": "v980kl7ygn3pf0ylyt2h",
+      "GroupId": "ofci2ee5ewdoojrjxd0b",
       "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
       "AttachedManagedPolicies": [
         {

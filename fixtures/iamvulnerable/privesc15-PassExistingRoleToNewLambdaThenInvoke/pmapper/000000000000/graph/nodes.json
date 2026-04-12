@@ -1,7 +1,23 @@
 [
     {
+        "arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+        "id_value": "ro8gzjjf3p76rnw2d8rw",
+        "attached_policies": [],
+        "group_memberships": [
+            "arn:aws:iam::000000000000:group/privesc-sre-group"
+        ],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 1,
+        "is_admin": true,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
         "arn": "arn:aws:iam::000000000000:user/privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
-        "id_value": "mg29j7aumtpkn7fl8gm6",
+        "id_value": "bs22rlzyqstykr3g4i6z",
         "attached_policies": [
             {
                 "arn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
@@ -19,24 +35,8 @@
         "tags": {}
     },
     {
-        "arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
-        "id_value": "a5lz94q51lobuixidt3u",
-        "attached_policies": [],
-        "group_memberships": [
-            "arn:aws:iam::000000000000:group/privesc-sre-group"
-        ],
-        "trust_policy": null,
-        "instance_profile": null,
-        "active_password": false,
-        "access_keys": 1,
-        "is_admin": true,
-        "permissions_boundary": null,
-        "has_mfa": false,
-        "tags": {}
-    },
-    {
         "arn": "arn:aws:iam::000000000000:role/privesc15-PassExistingRoleToNewLambdaThenInvoke-role",
-        "id_value": "AROAQAAAAAAAAOOH4MZXI",
+        "id_value": "AROAQAAAAAAANZS73NT4M",
         "attached_policies": [
             {
                 "arn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
@@ -66,8 +66,38 @@
         "tags": {}
     },
     {
+        "arn": "arn:aws:iam::000000000000:role/privesc15-lambda-execution-role",
+        "id_value": "AROAQAAAAAAAJEVWUV6S3",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+                "name": "privesc-sre-admin-policy"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "lambda.amazonaws.com"
+                    }
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": true,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
         "arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
-        "id_value": "AROAQAAAAAAAHYUHVSB4P",
+        "id_value": "AROAQAAAAAAABSITI6HUE",
         "attached_policies": [
             {
                 "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",

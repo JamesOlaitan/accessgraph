@@ -1,1 +1,26 @@
-[]
+[
+    {
+        "source": "arn:aws:iam::000000000000:user/privesc3-CreateEC2WithExistingInstanceProfile-user",
+        "destination": "arn:aws:iam::000000000000:role/privesc3-ec2-execution-role",
+        "reason": "can use EC2 to run an instance with an existing instance profile to access",
+        "short_reason": "EC2"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:user/privesc3-CreateEC2WithExistingInstanceProfile-user",
+        "destination": "arn:aws:iam::000000000000:role/privesc3-ec2-execution-role",
+        "reason": "can use EC2 to run an instance and then associate an existing instance profile to access",
+        "short_reason": "EC2"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc3-CreateEC2WithExistingInstanceProfile-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc3-ec2-execution-role",
+        "reason": "can use EC2 to run an instance with an existing instance profile to access",
+        "short_reason": "EC2"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc3-CreateEC2WithExistingInstanceProfile-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc3-ec2-execution-role",
+        "reason": "can use EC2 to run an instance and then associate an existing instance profile to access",
+        "short_reason": "EC2"
+    }
+]
