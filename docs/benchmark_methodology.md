@@ -362,7 +362,7 @@ pmapper --account <account-id> analysis --output-type json
 
 **Python 3.10+ compatibility patch:** PMapper 1.1.5 (released January 2022, the latest published version on PyPI) is incompatible with Python 3.10 and later because `principalmapper/util/case_insensitive_dict.py:34` imports `Mapping` and `MutableMapping` from the `collections` module rather than `collections.abc`. The `collections` aliases for these abstract base classes were deprecated in Python 3.3 and removed in Python 3.10. The PMapper maintainer has not shipped a fix; upstream issues nccgroup/PMapper#130, #131, and #140 (the latter from November 2023) all document the same problem and remain open. PMapper's PyPI classifiers list Python 3.5 through 3.9 only.
 
-This benchmark applies a one-line mechanical patch to the installed PMapper source inside the Docker image, rewriting the broken import to source `Mapping` and `MutableMapping` from `collections.abc` (the canonical Python 3.10+ form). The patch is applied via `sed` in the Dockerfile during the Prowler venv build step and is verified post-application by re-importing `CaseInsensitiveDict` in a Python sub-process. The patch does not modify PMapper's analysis logic, graph construction, BFS traversal, query interface, or any detection-relevant code path. `CaseInsensitiveDict` is an internal helper class used for IAM condition key case-insensitive matching; the patch only changes where the abstract base classes are imported from, not their behavior.
+This benchmark applies a one-line mechanical patch to the installed PMapper source inside the Docker image, rewriting the import that fails on Python 3.10+ to source `Mapping` and `MutableMapping` from `collections.abc` (the canonical Python 3.10+ form). The patch is applied via `sed` in the Dockerfile during the Prowler venv build step and is verified post-application by re-importing `CaseInsensitiveDict` in a Python sub-process. The patch does not modify PMapper's analysis logic, graph construction, BFS traversal, query interface, or any detection-relevant code path. `CaseInsensitiveDict` is an internal helper class used for IAM condition key case-insensitive matching; the patch only changes where the abstract base classes are imported from, not their behavior.
 
 An audit of the entire PMapper 1.1.5 codebase confirmed this is the only Python 3.10+ incompatibility present. The audit searched for: removed `collections` aliases (3.10), removed `inspect.getargspec` (3.11), removed `asyncio.coroutine` decorator (3.11), removed `imp` module (3.12), removed `distutils` (3.12), and deprecated `datetime.utcnow` (3.12). Only the single `case_insensitive_dict.py` import was found. No other patches are required for PMapper 1.1.5 to function correctly under Python 3.11.
 
@@ -436,9 +436,9 @@ The benchmark measures whether each tool **detects any element of the expected a
 
 | Tool | Observable field | Match type | Justification |
 |------|-----------------|------------|---------------|
-| PMapper | Principal references (`user/<name>`, `role/<name>`) in `findings[].description`, reconstructed to full ARNs using `account` field | Exact ARN match against `ExpectedAttackPath` elements | PMapper emits principal names in finding descriptions; ARNs are reconstructed as `arn:aws:iam::<account>:<ref>` |
-| Prowler | `resources[].uid` in json-ocsf output array | Exact ARN match against `ExpectedAttackPath` elements (where `status_code="FAIL"`) | Prowler OCSF findings carry resource ARNs in `resources[].uid` with FAIL/PASS in `status_code` |
-| Checkov | `resource` in `results.failed_checks` JSON | Exact match against `ExpectedAttackPath` elements (where severity is HIGH/CRITICAL/empty) | Checkov emits resource labels in failed checks |
+| PMapper | Principal references (`user/<name>`, `role/<name>`) in `findings[].description`, reconstructed to full ARNs using `account` field; supplemented by `is_admin` nodes from graph data | Exact ARN match against `ExpectedAttackPath` elements | PMapper emits principal names in finding descriptions; ARNs are reconstructed as `arn:aws:iam::<account>:<ref>`. Nodes with `is_admin=true` that lack admin-equivalent policies are also surfaced. |
+| Prowler | `resources[].uid` in json-ocsf output array, filtered by check ID allowlist | Exact ARN match against `ExpectedAttackPath` elements (where `status_code="FAIL"` and check name is in `prowlerPrivescCheckIDs`) | Prowler OCSF findings carry resource ARNs in `resources[].uid`; only findings whose check name (extracted from `finding_info.uid`) appears in the privesc allowlist are considered |
+| Checkov | `resource` in `results.failed_checks` JSON, filtered by check ID allowlist | Terraform resource label converted to ARN suffix, matched against `ExpectedAttackPath` using suffix comparison (where `check_id` is in `checkovPrivescCheckIDs`) | Checkov emits Terraform resource labels (`aws_iam_policy.name`); the adapter converts them to ARN suffixes (`:policy/name`) and matches against path elements |
 | AccessGraph | `path.ToResourceID` → ARN via `snapshot.Resources` | Exact ARN match against terminal (last) element of `ExpectedAttackPath` | In-process; maps internal resource IDs to ARNs |
 
 **Role of `expected_escalation_actions`:** This field is not used in TP/FN classification for any tool. It is preserved in the scenario fixture for post-hoc analysis: researchers can inspect which mechanisms each tool actually detects versus the ground-truth mechanism. The field does not affect any metric computation.
@@ -497,9 +497,15 @@ Output field inspected: JSON output from `pmapper --account <account-id> analysi
 
 The output is parsed into a `pmapperAnalysis` struct containing `Account string` (`json:"account"`) and `Findings []pmapperFinding` (`json:"findings"`). Each `pmapperFinding` has `Title string`, `Severity string`, and `Description string` fields. PMapper's analysis output is a high-level findings report, not structured graph paths. Principal references appear in the `Description` field as type/name pairs (e.g., `user/escalation-user`, `role/admin-role`).
 
-The adapter filters the findings array to only those with title `"IAM Principal Can Escalate Privileges"` -- the exact title that PMapper's `gen_privesc_findings()` function produces for privilege escalation detections. Other finding types that `pmapper analysis` may emit (circular access, overprivileged instance profile, IAM users without MFA, and others) are excluded from the extraction loop because they may mention principals incidentally without indicating a detected escalation path.
+The adapter filters the findings array to only those with title `"IAM Principals Can Escalate Privileges"` -- the exact title that PMapper's `gen_privesc_findings()` function produces for privilege escalation detections. Other finding types that `pmapper analysis` may emit (circular access, overprivileged instance profile, IAM users without MFA, and others) are excluded from the extraction loop because they may mention principals incidentally without indicating a detected escalation path.
 
 From each retained finding, the adapter extracts principal references matching the pattern `(user|role|group)/[\w.+=,@-]+`, reconstructs full ARNs as `arn:aws:iam::<account>:<ref>` using the top-level `account` field from the analysis output, and checks for intersection with `ExpectedAttackPath` elements.
+
+**Admin-status augmentation:** PMapper's `update_admin_status()` identifies nodes that can reach administrative access, marking them with `is_admin=true` in the graph's `nodes.json`. Some scenarios produce admin-status detections without corresponding escalation findings (PMapper generates a finding only when a specific edge-based escalation path is identified, not for all admin-status nodes). The adapter reads `nodes.json`, `groups.json`, and `policies.json` from the PMapper graph directory and identifies nodes with `is_admin=true` that do not hold admin-equivalent policies either directly or through group membership. These nodes represent escalation-derived admins: principals that reached admin status through privilege escalation rather than direct policy attachment. The adapter appends synthetic escalation findings for these nodes to the analysis output before parsing.
+
+Pre-existing admins (nodes with `is_admin=true` whose effective policies include `AdministratorAccess`, or any policy with `Allow` on `Action: *` / `iam:*` and `Resource: *`) are excluded from augmentation. This prevents the shared SRE admin accounts present in every IAMVulnerable scenario from being counted as escalation detections.
+
+If the graph files are not available in the scenario fixture directory, the adapter falls back to the raw `pmapper_findings.json` output without augmentation.
 
 **TP:** Any reconstructed principal ARN exactly matches any element of `ExpectedAttackPath`.
 
@@ -517,40 +523,47 @@ Output field inspected: captured json-ocsf output from `prowler aws --output-for
 
 The output is parsed as `[]prowlerOCSFFinding`, where each `prowlerOCSFFinding` has `StatusCode string` (`json:"status_code"`) and `Resources []prowlerOCSFResource` (`json:"resources"`). Each `prowlerOCSFResource` has `UID string` (`json:"uid"`) containing the resource ARN. In Prowler's OCSF output, `status_code` holds `"FAIL"` or `"PASS"` (the `status` field holds an OCSF lifecycle value like `"New"` and is not used for detection matching).
 
-**TP:** A finding exists where both conditions hold:
-1. `status_code` equals `"FAIL"` (case-insensitive comparison via `strings.EqualFold`)
-2. Any `resources[].uid` exactly matches any element of `ExpectedAttackPath`
+**TP:** A finding exists where all three conditions hold:
+1. `status_code` equals `"FAIL"` (case-insensitive comparison)
+2. The check name extracted from `finding_info.uid` appears in the `prowlerPrivescCheckIDs` allowlist
+3. Any `resources[].uid` exactly matches any element of `ExpectedAttackPath`
 
-The adapter collects resource UIDs from all FAIL findings into a set and checks for intersection with the expected attack path elements. No `event_code` or check ID filtering is applied.
+The check name is extracted from the OCSF `finding_info.uid` field, which encodes the check name, account ID, region, and resource in the format `prowler-aws-<check_name>-<account_id>-<region>-<resource>`. The adapter splits on the first occurrence of a hyphen followed by 12 digits to isolate the check name.
 
-**FN:** No FAIL finding has a `resources[].uid` matching any element of `ExpectedAttackPath`.
+The allowlist contains eight Prowler check IDs related to privilege escalation and administrative access: `iam_policy_allows_privilege_escalation`, `iam_inline_policy_allows_privilege_escalation`, `iam_no_custom_policy_permissive_role_assumption`, `iam_customer_attached_policy_no_administrative_privileges`, `iam_inline_policy_no_administrative_privileges`, `iam_role_administratoraccess_policy`, `iam_user_administrator_access_policy`, and `iam_group_administrator_access_policy`. Without this filter, unrelated FAIL findings (MFA checks, password policy, CloudTrail logging) whose `resources[].uid` happens to match an `ExpectedAttackPath` ARN produce false matches that inflate recall.
+
+**FN:** No filtered FAIL finding has a `resources[].uid` matching any element of `ExpectedAttackPath`.
 
 **FP:** Not classified by the external tool dispatch logic. See Section 5.3 for FPR limitations.
 
 **Known limitation:** The benchmark evaluates Prowler's individual check output,
-not its newer attack path visualization feature. Prowler's checks evaluate
-per-policy conditions and may produce a TP for `simple` scenarios where a single
-dangerous permission is directly attached to the starting principal, but will
-generally produce FN for `multi_hop` scenarios where no individual policy
-statement is dangerous in isolation. This reflects the scope of Prowler's check
-framework as evaluated; Prowler's attack path visualization capability is not
-exercised by this benchmark's invocation method.
+not its newer attack path visualization feature. Prowler's check framework
+evaluates per-policy conditions; it does not trace multi-hop escalation chains.
+However, because every IAMVulnerable scenario terminates at the same shared
+admin-equivalent policy (`privesc-sre-admin-policy`), and Prowler's
+`iam_customer_attached_policy_no_administrative_privileges` check flags that
+policy in every scenario, Prowler achieves 100% TP on the vulnerable subset.
+This reflects the shared-terminal-policy structure of the captured dataset, not
+Prowler's ability to detect multi-hop escalation in general. See Section 4.5
+for further discussion of detection model differences.
 
 ---
 
 **Checkov**
 
-Output field inspected: JSON stdout from `checkov -d <scenarioDir> --framework terraform --output json`.
+Output field inspected: captured JSON output from `checkov -d <scenarioDir> --framework terraform --output json`. The adapter reads the captured `checkov.json` file directly from the scenario fixture directory rather than re-invoking Checkov.
 
-The output is parsed as a `checkovResult` struct containing `Results.FailedChecks`, where each failed check has `Resource string` and `Severity string` fields.
+The output is parsed as a `checkovResult` struct containing `Results.FailedChecks`, where each failed check has `CheckID string`, `Severity string`, and `Resource string` fields. The `Resource` field contains Terraform resource labels (e.g., `aws_iam_policy.privesc1-CreateNewPolicyVersion`), not AWS ARNs.
 
 **TP:** A failed check exists where both conditions hold:
-1. `severity` is `"HIGH"`, `"CRITICAL"`, or empty (empty severity is accepted for compatibility with older Checkov versions that do not populate this field)
-2. `resource` exactly matches any element of `ExpectedAttackPath`
+1. `check_id` appears in the `checkovPrivescCheckIDs` allowlist (`CKV_AWS_286`, `CKV_AWS_287`, `CKV_AWS_289`)
+2. The Terraform resource label, after conversion to an ARN suffix, matches any element of `ExpectedAttackPath` using suffix comparison
 
-The adapter collects resource IDs from severity-filtered failed checks into a set and checks for intersection with the expected attack path elements. No `check_id` filtering is applied.
+The adapter converts Terraform resource labels to ARN suffixes by splitting on `.` and mapping the resource type (`aws_iam_policy` to `policy/`, `aws_iam_user` to `user/`, `aws_iam_role` to `role/`, `aws_iam_group` to `group/`). For example, `aws_iam_policy.my-policy` becomes `:policy/my-policy`. The adapter then checks whether any `ExpectedAttackPath` element ends with the constructed suffix. Resource types not in the mapping are ignored.
 
-**FN:** No severity-filtered failed check has a `resource` matching any element of `ExpectedAttackPath`.
+Without the check ID filter, unrelated checks (SSO enforcement, wildcard statements, policy attachment hygiene) inflate recall. Without the resource label conversion, Checkov's Terraform-format output produces zero matches against the ARN-format `ExpectedAttackPath`.
+
+**FN:** No filtered failed check has a converted resource suffix matching any element of `ExpectedAttackPath`.
 
 **FP:** Not classified by the external tool dispatch logic. See Section 5.3 for FPR limitations.
 
@@ -594,6 +607,30 @@ Both are excluded from precision and recall computation identically. The structu
 - Excluded from precision and recall computation
 - Reported separately in the comparison table as a failure count per tool, with `deadline` and `infrastructure` sub-counts
 - Investigated and re-run if the count exceeds 3 for any tool across the full 31-scenario suite; re-runs that also fail are kept as `LabelTimeout` and noted in the paper. Infrastructure failures are re-run with higher priority than deadline failures, since they indicate environmental issues rather than tool limitations.
+
+---
+
+### 4.5 Detection model differences and their effect on recall
+
+The four tools evaluated in this benchmark operate under two fundamentally different detection models, and this distinction explains most of the observed recall variation. Understanding these models is necessary for interpreting the benchmark results correctly.
+
+**Reachability detection vs. per-principal-pair detection.** AccessGraph, Prowler, and Checkov each operate on a reachability model: each tool inspects the IAM environment for policy statements or resource configurations that indicate a privilege escalation risk, without constructing specific source-to-destination edges between principals. AccessGraph builds a directed graph and runs BFS from the starting principal, but still reports any reachable path to the terminal resource. Prowler and Checkov evaluate individual policies and flag those that satisfy escalation criteria (administrative privileges, privilege escalation actions, credentials exposure). The benchmark scores a TP when any tool output matches any element of `ExpectedAttackPath`, consistent with the reachability framing.
+
+PMapper operates on a per-principal-pair model. Its nine edge modules (`lambda_edges.py`, `ec2_edges.py`, `cloudformation_edges.py`, and six others) construct directed edges between specific IAM principals by enumerating target service resources (Lambda functions, EC2 instances, CloudFormation stacks) and checking whether the source principal has sufficient permissions to interact with those resources and pass a role. If no target resource exists for a given service, the corresponding edge module produces zero edges for that scenario, regardless of whether the principal's IAM permissions would allow the escalation. This per-pair model means PMapper's recall is bounded by target resource availability in the capture environment, not only by IAM policy analysis.
+
+**PMapper failure modes on the captured subset.** PMapper's 3 false negatives on the 10-scenario vulnerable subset fall into two structural categories:
+
+1. *Unimplemented escalation mechanisms (2 scenarios):* PMapper has no edge module for `iam:AddUserToGroup` or `iam:SetDefaultPolicyVersion`. These actions are not modeled in any of the nine `*_edges.py` modules or in the admin-status check. This is an architectural coverage gap. Bishop Fox's 2022 evaluation found PMapper detected 22 of 32 escalation paths (69%); Palo Alto's IAM-Deescalate (2024) found PMapper covered 24 of 31 documented paths (77%). Both evaluations confirm that PMapper intentionally limits its scope to a subset of known escalation mechanisms.
+
+2. *Missing target resources for edge construction (1 scenario):* The SageMaker PassRole scenario requires a SageMaker notebook instance for PMapper's edge module to discover. LocalStack community edition does not support SageMaker, so the notebook instance cannot be provisioned in the capture environment. PMapper's SageMaker edge module finds no target resources and produces zero edges. This is a capture-environment limitation, not a tool limitation. On a live AWS account with a SageMaker notebook instance present, PMapper would construct the edge.
+
+**AccessGraph failure mode on the captured subset.** AccessGraph's 1 false negative on the 10-scenario vulnerable subset is `privesc-AssumeRole`, a three-role `sts:AssumeRole` chain (see Section 1.2 for the full structural context). The starting user (`privesc-AssumeRole-start-user`) has no IAM policy attached; the trust policy on `privesc-AssumeRole-starting-role` grants assumption to `var.aws_assume_role_arn`, which resolves to the start-user's ARN. AccessGraph's edge synthesis does not currently model the AWS semantics where a trust policy granting `sts:AssumeRole` to an account-root principal (or to a specific user ARN) is satisfiable by any principal in the account that holds `sts:AssumeRole` permission. Without this modeling, the start-user has no outbound edges and the BFS finds no path to the terminal admin policy. The scenario manifest records `classification_override: "FN"` to distinguish this known structural limitation from an unexpected detection failure. Modeling trust-policy root-principal resolution is deferred for follow-up work.
+
+**Trust-policy requirement for edge construction.** PMapper's edge modules check the trust policy on destination roles before constructing edges. For example, `lambda_edges.py` calls `resource_policy_authorization('lambda.amazonaws.com', ...)` to verify that the destination role's trust policy allows the Lambda service to assume it. Without a role whose trust policy includes the relevant service principal (`lambda.amazonaws.com`, `ec2.amazonaws.com`, `cloudformation.amazonaws.com`), PMapper produces zero edges even if the source principal has full `iam:PassRole` permissions. The benchmark's capture environment provisions service-assumable roles with admin-equivalent policies in `terraform/localstack-supplements/` to satisfy this requirement for three PassRole scenarios (Lambda, EC2, CloudFormation). This provisioning is a capture-environment concern, not a detection criterion change.
+
+**TN labeling convention.** The dispatch logic for external tools (Prowler, PMapper, Checkov) classifies each scenario result by calling `Parse()` against `ExpectedAttackPath`. For true negative scenarios, `ExpectedAttackPath` is empty, so `Parse()` always returns false and the result is labeled `FN`. The `is_true_negative` field on the result is set to `true`, distinguishing these from genuine false negatives on vulnerable scenarios. The aggregate metrics in `by_tool` count these TN-labeled-as-FN results in the `false_negatives` total, which inflates the denominator and depresses the reported recall. When reading the benchmark output, the number of false negatives on vulnerable scenarios is `false_negatives` minus the TN count (5 in the current captured subset). Only AccessGraph's in-process `classifyDetectionInternal()` produces `LabelTN` and `LabelFP` for true negative scenarios.
+
+**Shared terminal policy.** Every vulnerable scenario in the IAMVulnerable dataset terminates at the same admin-equivalent policy (`privesc-sre-admin-policy`, a Terraform-managed policy with `iam:*` on `Resource: *`). This policy appears in `ExpectedAttackPath` for all 10 vulnerable scenarios. Prowler and Checkov, which evaluate policies independently of source principals, flag this policy in every scenario and therefore achieve 100% TP on the vulnerable subset. This result is structurally correct under the reachability detection model: the tools correctly identify that an admin-equivalent policy exists in the environment. It does not demonstrate that either tool can trace the escalation chain from the starting principal to the terminal resource. The per-class recall breakdown in Section 6 should be interpreted with this structural observation in mind.
 
 ---
 
