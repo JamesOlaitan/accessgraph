@@ -2,8 +2,8 @@ package graph
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/JamesOlaitan/accessgraph/internal/iampolicy"
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
@@ -100,7 +100,7 @@ func NewEngine(snapshot *model.Snapshot) (*Engine, error) {
 			Kind:  "Policy",
 			Label: pol.Name,
 		}
-		if isAdminEquivalentPolicy(pol) {
+		if iampolicy.IsAdminEquivalentPolicy(pol) {
 			e.sensitiveNodes[pol.ID] = true
 		}
 	}
@@ -175,41 +175,4 @@ func (e *Engine) NodeCount() int {
 //   - int count of all edges, including synthesized escalation edges.
 func (e *Engine) EdgeCount() int {
 	return len(e.edges)
-}
-
-// isAdminEquivalentPolicy reports whether a policy represents an admin-equivalent
-// grant that makes it a meaningful BFS destination for privilege-escalation analysis.
-//
-// A policy is admin-equivalent when ANY of the following is true:
-//  1. Its ARN is "arn:aws:iam::aws:policy/AdministratorAccess" (the canonical
-//     AWS-managed full-access policy).
-//  2. Any of its Allow permissions grants Action "*" or "iam:*" on Resource "*"
-//     (wildcard admin — equivalent to AdministratorAccess for IAM purposes).
-//
-// Parameters:
-//   - pol: the policy to evaluate; must not be nil.
-//
-// Returns:
-//   - true if the policy is admin-equivalent; false otherwise.
-func isAdminEquivalentPolicy(pol *model.Policy) bool {
-	if pol.ARN == "arn:aws:iam::aws:policy/AdministratorAccess" {
-		return true
-	}
-	for _, perm := range pol.Permissions {
-		if perm == nil {
-			continue
-		}
-		if !strings.EqualFold(perm.Effect, "Allow") {
-			continue
-		}
-		// Resource must be the full wildcard to qualify as admin-equivalent.
-		if perm.ResourcePattern != "*" && perm.ResourcePattern != "" {
-			continue
-		}
-		lower := strings.ToLower(perm.Action)
-		if lower == "*" || lower == "iam:*" {
-			return true
-		}
-	}
-	return false
 }

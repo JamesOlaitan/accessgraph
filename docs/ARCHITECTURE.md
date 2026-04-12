@@ -450,6 +450,8 @@ To close this gap, the parser also creates a Resource node for any policy that s
 
 The rationale: attaching an admin-equivalent policy to a principal confers administrative access. From a blast-radius perspective, the policy is a reachable sensitive target in the same way that an S3 bucket holding secrets or a KMS key is a reachable sensitive target. The IAM-Deescalate paper and PMapper both model escalation paths as terminating at the admin policy; `benchmark_methodology.md` Section 4.1's ground-truth example uses `arn:aws:iam::aws:policy/AdministratorAccess` as the terminal element of `expected_path_nodes`. Modeling admin-equivalent policies as Resources aligns AccessGraph's internal representation with the benchmark's ground truth and with the other tools it is compared against.
 
+The canonical implementation of the admin-equivalence check lives in `internal/iampolicy/`, which is the dedicated package for policy-level predicates that cross multiple layers.
+
 This design does not affect non-benchmark usage. The analysis report's blast-radius metrics (`reachable_resource_count`, `pct_environment_reachable`) include admin-equivalent policy nodes in the resource count, which is the correct behavior: an attacker who reaches AdministratorAccess has reached the most sensitive target in the environment.
 
 ---

@@ -8,6 +8,14 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `internal/iampolicy/` package centralizing canonical
+  predicates over IAM policy documents. First inhabitant is
+  `IsAdminEquivalentPolicy`, which recognizes all three
+  admin-equivalent forms defined in `findings_schema.md`
+  Section 1.1: AdministratorAccess attached, `iam:*` on `*`,
+  and `*:*` (or bare `*`) on `*`. Imported by
+  `internal/graph/builder.go`; future cross-layer policy
+  predicates belong here. See `ARCHITECTURE.md` Section 6.
 - `docs/ARCHITECTURE.md` §6 subsection "Admin-Equivalent Policies as
   Resource Nodes" documenting the design decision that the parser creates
   a Resource node for any policy satisfying the admin-equivalence criteria
@@ -116,6 +124,12 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `internal/graph/builder.go` admin-equivalence check now
+  delegates to `iampolicy.IsAdminEquivalentPolicy`.
+  Previously the in-package helper recognized only the
+  bare `Action: "*"` form; the canonical definition in
+  `findings_schema.md` Section 1.1 enumerates three forms
+  and the implementation now matches.
 - `internal/iamexport/exporter.go` now filters AWS managed policies from
   the exported IAM configuration. `GetAccountAuthorizationDetails` returns
   all AWS managed policies regardless of whether any principal in the
