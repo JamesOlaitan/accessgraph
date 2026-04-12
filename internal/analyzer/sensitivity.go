@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/JamesOlaitan/accessgraph/internal/iampolicy"
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
@@ -26,6 +27,8 @@ import (
 //     component exactly matches "AdministratorAccess" (case-insensitive).
 //  3. Its ARN contains ":secret:" (AWS Secrets Manager secrets).
 //  4. Its ARN contains ":key/" and its Kind is "KMSKey".
+//  5. A Policy in snapshot.Policies shares the same ARN and satisfies
+//     the admin-equivalence criteria (iampolicy.IsAdminEquivalentPolicy).
 //
 // Parameters:
 //   - snapshot: the point-in-time snapshot whose Resources are to be classified;
@@ -39,11 +42,21 @@ func ClassifySensitiveResources(snapshot *model.Snapshot) error {
 		return fmt.Errorf("ClassifySensitiveResources: %w: snapshot must not be nil", ErrInvalidInput)
 	}
 
+	policyByARN := make(map[string]*model.Policy, len(snapshot.Policies))
+	for _, pol := range snapshot.Policies {
+		if pol != nil && pol.ARN != "" {
+			policyByARN[pol.ARN] = pol
+		}
+	}
+
 	for _, r := range snapshot.Resources {
 		if r == nil {
 			continue
 		}
 		if isSensitiveResource(r) {
+			r.IsSensitive = true
+		}
+		if pol, ok := policyByARN[r.ARN]; ok && iampolicy.IsAdminEquivalentPolicy(pol) {
 			r.IsSensitive = true
 		}
 	}

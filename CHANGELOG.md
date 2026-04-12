@@ -130,6 +130,13 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Makefile targets: `docker-build`, `docker-up`, `docker-down`.
 
 ### Changed
+- `internal/analyzer/sensitivity.go` `ClassifySensitiveResources` joins
+  Resources with Policies by ARN and marks Resources whose matching
+  Policy is admin-equivalent as `IsSensitive = true`. This complements
+  the existing heuristic rules (role-name patterns, Secrets Manager,
+  KMS) and ensures all admin-equivalent policy Resources are classified
+  as sensitive targets. See `ARCHITECTURE.md` Section 6 and
+  `findings_schema.md` Section 1.1.
 - `internal/graph/builder.go` admin-equivalence check now
   delegates to `iampolicy.IsAdminEquivalentPolicy`.
   Previously the in-package helper recognized only the

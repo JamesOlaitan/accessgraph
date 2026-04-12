@@ -413,6 +413,77 @@ func TestClassifySensitiveResources(t *testing.T) {
 	}
 }
 
+// TestClassifySensitiveResourcesAdminEquivalenceJoin verifies that the
+// classifier marks Resources as sensitive when a Policy with the same ARN
+// is admin-equivalent, without breaking existing heuristic rules.
+func TestClassifySensitiveResourcesAdminEquivalenceJoin(t *testing.T) {
+	snap := &model.Snapshot{
+		ID: "admin-equiv-sensitivity-snap",
+		Policies: []*model.Policy{
+			{
+				ID:  "pol-admin",
+				ARN: "arn:aws:iam::123456789012:policy/privesc-admin",
+				Permissions: []*model.Permission{
+					{Action: "iam:*", ResourcePattern: "*", Effect: "Allow"},
+				},
+			},
+			{
+				ID:  "pol-readonly",
+				ARN: "arn:aws:iam::123456789012:policy/readonly",
+				Permissions: []*model.Permission{
+					{Action: "s3:Get*", ResourcePattern: "*", Effect: "Allow"},
+				},
+			},
+		},
+		Resources: []*model.Resource{
+			{
+				ID:   "r-admin-pol",
+				ARN:  "arn:aws:iam::123456789012:policy/privesc-admin",
+				Kind: "IAMPolicy",
+			},
+			{
+				ID:   "r-readonly-pol",
+				ARN:  "arn:aws:iam::123456789012:policy/readonly",
+				Kind: "IAMPolicy",
+			},
+			{
+				ID:   "r-bucket",
+				ARN:  "arn:aws:s3:::data-bucket",
+				Kind: "S3Bucket",
+			},
+			{
+				ID:   "r-admin-role",
+				ARN:  "arn:aws:iam::123456789012:role/admin",
+				Kind: "IAMRole",
+			},
+		},
+	}
+
+	if err := analyzer.ClassifySensitiveResources(snap); err != nil {
+		t.Fatalf("ClassifySensitiveResources: %v", err)
+	}
+
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"r-admin-pol", true},
+		{"r-readonly-pol", false},
+		{"r-bucket", false},
+		{"r-admin-role", true},
+	}
+	for _, tc := range cases {
+		for _, r := range snap.Resources {
+			if r.ID == tc.id {
+				if r.IsSensitive != tc.want {
+					t.Errorf("Resource %s: IsSensitive=%v, want %v (ARN=%s)",
+						tc.id, r.IsSensitive, tc.want, r.ARN)
+				}
+			}
+		}
+	}
+}
+
 // TestClassifySensitiveResourcesNilSnapshot verifies that
 // ClassifySensitiveResources returns ErrInvalidInput for a nil snapshot.
 func TestClassifySensitiveResourcesNilSnapshot(t *testing.T) {
