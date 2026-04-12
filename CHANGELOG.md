@@ -13,6 +13,10 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   only checked `snapshot.Resources`, so paths terminating at a sensitive
   Policy node (the common case for wildcard-permission escalation scenarios)
   were invisible to the matcher and always scored FN.
+- `iam:AddUserToGroup` added to the escalation actions table in
+  `internal/graph/escalation.go`. The privesc13-AddUserToGroup scenario
+  was scoring FN because `SynthesizeEscalationEdges` did not recognize
+  this action as an escalation primitive.
 
 ### Added
 - `internal/parser/aws_iam.go` creates a Resource node for any policy

@@ -187,6 +187,45 @@ func TestSynthesizeEscalationEdgesCreateKey(t *testing.T) {
 	}
 }
 
+// TestSynthesizeEscalationEdgesAddUserToGroup verifies that a user with
+// iam:AddUserToGroup targeting "*" gets a CAN_PASS_ROLE edge to all roles.
+func TestSynthesizeEscalationEdgesAddUserToGroup(t *testing.T) {
+	const (
+		userID      = "user-aug"
+		userARN     = "arn:aws:iam::123456789012:user/user-aug"
+		roleID      = "role-aug"
+		roleARN     = "arn:aws:iam::123456789012:role/TargetRole"
+		policyID    = "policy-aug"
+		action      = "iam:AddUserToGroup"
+		resourcePat = "*"
+	)
+
+	snap := buildEscalationSnap(userID, userARN, roleID, roleARN, policyID, action, resourcePat)
+	eng, err := graph.NewEngine(snap)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+
+	edgesBefore := eng.EdgeCount()
+
+	if err := graph.SynthesizeEscalationEdges(eng, snap); err != nil {
+		t.Fatalf("SynthesizeEscalationEdges: %v", err)
+	}
+
+	edgesAfter := eng.EdgeCount()
+	if edgesAfter <= edgesBefore {
+		t.Errorf("expected new edges after synthesis; before=%d after=%d", edgesBefore, edgesAfter)
+	}
+
+	path, err := eng.ShortestPath(t.Context(), userID, roleID, 1)
+	if err != nil {
+		t.Fatalf("ShortestPath user→role after synthesis: %v (CAN_PASS_ROLE edge not synthesized for iam:AddUserToGroup)", err)
+	}
+	if path.HopCount != 1 {
+		t.Errorf("expected 1-hop path from user to role, got %d", path.HopCount)
+	}
+}
+
 // TestSynthesizeEscalationEdgesIdempotent verifies that calling
 // SynthesizeEscalationEdges twice does not add duplicate edges.
 func TestSynthesizeEscalationEdgesIdempotent(t *testing.T) {

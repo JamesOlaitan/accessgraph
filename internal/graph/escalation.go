@@ -31,6 +31,10 @@ var escalationActions = []struct {
 	{pattern: "iam:CreatePolicyVersion", kind: model.EdgeKindCanPassRole},
 	{pattern: "iam:SetDefaultPolicyVersion", kind: model.EdgeKindCanPassRole},
 
+	// Group membership manipulation: add a user to a privileged group,
+	// inheriting all policies attached to that group.
+	{pattern: "iam:AddUserToGroup", kind: model.EdgeKindCanPassRole},
+
 	// Credential and login manipulation: create or reset credentials for any
 	// IAM user, giving the attacker persistent access as that user.
 	{pattern: "iam:CreateAccessKey", kind: model.EdgeKindCanCreateKey},
