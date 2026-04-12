@@ -1,0 +1,21 @@
+{
+    "account": "000000000000",
+    "date_and_time": "2026-04-12T04:10:22.656065+00:00",
+    "findings": [
+        {
+            "title": "IAM Users With Administrative Permissions But No MFA Device",
+            "severity": "Medium",
+            "impact": "If an attacker gains access to any of the noted sensitive IAM Users, there is no secondary layer of protection in place to prevent the AWS from being compromised.",
+            "description": "In AWS, an IAM User can be assigned a device for Multi-Factor Authentication (MFA). When an IAM User is assigned an MFA device, they are required to provide an extra factor of authentication when logging in to the AWS Console. It is also possible to create IAM Policies that impose extra restrictions on the permissions of IAM Users depending on whether or not they have authenticated with MFA when using the AWS API. Any IAM User with administrative privileges should be configured to have an MFA device. \n\nThe following IAM Users with administrative privileges do not have an MFA device configured:\n\n* user/privesc7-AttachUserPolicy-user\n* user/privesc-sre-user",
+            "recommendation": "Assign an MFA device to each of the noted IAM Users."
+        },
+        {
+            "title": "Administrative IAM Users Can Call Sensitive Actions Without MFA",
+            "severity": "Medium",
+            "impact": "An adminstrative IAM User is able to call sensitive actions, such as creating more principals or modifying permissions, without using MFA.",
+            "description": "In AWS, IAM Users can be configured to use an MFA device. When an IAM User has MFA enabled, they are required to provide the second factor of authentication when they log in to the AWS Console. However, unless there is a specific IAM policy attached to the user, they will not need to provide a second factor of authentication when making API calls.\n\nThe following administrative IAM Users have at least one set of access keys, and can call sensitive actions to alter permissions or add users without using a second factor of authentication:\n\n* user/privesc7-AttachUserPolicy-user\n* user/privesc-sre-user\n",
+            "recommendation": "Implement and attach an IAM Policy to the noted user(s) that rejects requests when MFA is not used."
+        }
+    ],
+    "source": "Findings identified using Principal Mapper (1.1.5) from NCC Group: https://github.com/nccgroup/PMapper"
+}
