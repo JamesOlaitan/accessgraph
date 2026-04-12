@@ -1,0 +1,163 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "privesc-AssumeRole-start-user",
+      "UserId": "0g1ra9nyigfsiott8tfn",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-AssumeRole-start-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "v1nkm3eldlp4hzs805px",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "privesc-AssumeRole-starting-role",
+      "RoleId": "AROAQAAAAAAAFPRVIYWOI",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:root"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-AssumeRole-intermediate-role",
+      "RoleId": "AROAQAAAAAAAAGWR5G5A6",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-sre-role",
+      "RoleId": "AROAQAAAAAAAKE7GWGYWB",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-AssumeRole-ending-role",
+      "RoleId": "AROAQAAAAAAADAO6SQ2YX",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-ending-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-AssumeRole-high-priv-policy",
+          "PolicyName": "privesc-AssumeRole-high-priv-policy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "privesc-sre-group",
+      "GroupId": "ofoer2cxnnnbe4oxf6se",
+      "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "privesc-sre-admin-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:*",
+              "ec2:*",
+              "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    {
+      "PolicyName": "privesc-AssumeRole-high-priv-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-AssumeRole-high-priv-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": "*",
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    }
+  ]
+}

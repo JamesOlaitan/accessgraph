@@ -1,0 +1,84 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "tn-clean-004-user-2",
+      "UserId": "bbr55nn4qg8zhi7qjvgo",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-004-user-2",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+          "PolicyName": "AmazonEC2ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-004-user-3",
+      "UserId": "pf3f0widu1wa5ma6gdzq",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-004-user-3",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+          "PolicyName": "CloudWatchReadOnlyAccess"
+        },
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+          "PolicyName": "AmazonEC2ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-004-user-1",
+      "UserId": "q4lnqvcwoh6lp6iqel1e",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-004-user-1",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+          "PolicyName": "CloudWatchReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-004-user-4",
+      "UserId": "nynlf2og3je0soz86igr",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-004-user-4",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+          "PolicyName": "AmazonRDSReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "tn-clean-004-lambda-role",
+      "RoleId": "AROAQAAAAAAAI74DIID33",
+      "Arn": "arn:aws:iam::000000000000:role/tn-clean-004-lambda-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [],
+  "policies": []
+}

@@ -1,0 +1,134 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "privesc3-CreateEC2WithExistingInstanceProfile-user",
+      "UserId": "ehipxly2yb0k9ai9pnao",
+      "Arn": "arn:aws:iam::000000000000:user/privesc3-CreateEC2WithExistingInstanceProfile-user",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc3-CreateEC2WithExistingInstanceProfile",
+          "PolicyName": "privesc3-CreateEC2WithExistingInstanceProfile"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "auo7qgywf6rja4a21yv2",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "privesc3-CreateEC2WithExistingInstanceProfile-role",
+      "RoleId": "AROAQAAAAAAAHE3IMJKZ6",
+      "Arn": "arn:aws:iam::000000000000:role/privesc3-CreateEC2WithExistingInstanceProfile-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:root"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc3-CreateEC2WithExistingInstanceProfile",
+          "PolicyName": "privesc3-CreateEC2WithExistingInstanceProfile"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-sre-role",
+      "RoleId": "AROAQAAAAAAAGFNPS56ZS",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "privesc-sre-group",
+      "GroupId": "h4nhmfqhzbju45ltos5l",
+      "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "privesc3-CreateEC2WithExistingInstanceProfile",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc3-CreateEC2WithExistingInstanceProfile",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:PassRole",
+              "ec2:DescribeInstances",
+              "ec2:RunInstances",
+              "ec2:CreateKeyPair",
+              "ec2:AssociateIamInstanceProfile"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    {
+      "PolicyName": "privesc-sre-admin-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:*",
+              "ec2:*",
+              "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    }
+  ]
+}

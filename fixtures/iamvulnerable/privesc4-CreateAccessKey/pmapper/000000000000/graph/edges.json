@@ -1,0 +1,20 @@
+[
+    {
+        "source": "arn:aws:iam::000000000000:user/privesc4-CreateAccessKey-user",
+        "destination": "arn:aws:iam::000000000000:user/privesc-sre-user",
+        "reason": "can create access keys to authenticate as",
+        "short_reason": "IAM"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc4-CreateAccessKey-role",
+        "destination": "arn:aws:iam::000000000000:user/privesc4-CreateAccessKey-user",
+        "reason": "can create access keys to authenticate as",
+        "short_reason": "IAM"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc4-CreateAccessKey-role",
+        "destination": "arn:aws:iam::000000000000:user/privesc-sre-user",
+        "reason": "can create access keys to authenticate as",
+        "short_reason": "IAM"
+    }
+]

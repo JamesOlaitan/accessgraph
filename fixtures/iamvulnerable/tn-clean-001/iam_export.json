@@ -1,0 +1,71 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "tn-clean-001-user-3",
+      "UserId": "tmqm2z61dlmb2f9l3y4e",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-001-user-3",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+          "PolicyName": "AmazonS3ReadOnlyAccess"
+        },
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+          "PolicyName": "CloudWatchReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-001-user-2",
+      "UserId": "qr7nmvz05m57fil7mv6e",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-001-user-2",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+          "PolicyName": "CloudWatchReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-001-user-1",
+      "UserId": "dk6vlwxls5ftwln7f8nj",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-001-user-1",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+          "PolicyName": "AmazonS3ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "tn-clean-001-lambda-role",
+      "RoleId": "AROAQAAAAAAAODZLB5YP4",
+      "Arn": "arn:aws:iam::000000000000:role/tn-clean-001-lambda-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [],
+  "policies": []
+}

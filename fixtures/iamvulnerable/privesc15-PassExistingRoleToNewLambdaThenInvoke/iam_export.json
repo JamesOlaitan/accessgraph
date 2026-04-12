@@ -1,0 +1,132 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
+      "UserId": "mg29j7aumtpkn7fl8gm6",
+      "Arn": "arn:aws:iam::000000000000:user/privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
+          "PolicyName": "privesc15-PassExistingRoleToNewLambdaThenInvoke"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "a5lz94q51lobuixidt3u",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "privesc15-PassExistingRoleToNewLambdaThenInvoke-role",
+      "RoleId": "AROAQAAAAAAAAOOH4MZXI",
+      "Arn": "arn:aws:iam::000000000000:role/privesc15-PassExistingRoleToNewLambdaThenInvoke-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:root"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
+          "PolicyName": "privesc15-PassExistingRoleToNewLambdaThenInvoke"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-sre-role",
+      "RoleId": "AROAQAAAAAAAHYUHVSB4P",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "privesc-sre-group",
+      "GroupId": "b8nvo1hjmupqoh9kuuki",
+      "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "privesc-sre-admin-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:*",
+              "ec2:*",
+              "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    {
+      "PolicyName": "privesc15-PassExistingRoleToNewLambdaThenInvoke",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc15-PassExistingRoleToNewLambdaThenInvoke",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:PassRole",
+              "lambda:CreateFunction",
+              "lambda:InvokeFunction"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+[
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role",
+        "reason": "can access via sts:AssumeRole",
+        "short_reason": "AssumeRole"
+    },
+    {
+        "source": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role",
+        "destination": "arn:aws:iam::000000000000:role/privesc-AssumeRole-ending-role",
+        "reason": "can access via sts:AssumeRole",
+        "short_reason": "AssumeRole"
+    }
+]

@@ -1,0 +1,123 @@
+[
+    {
+        "arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-4",
+        "id_value": "7gacacju0zc52zoq7f4g",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+                "name": "AmazonRDSReadOnlyAccess"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {
+            "ManagedBy": "terraform",
+            "Environment": "tn-clean-002",
+            "Project": "accessgraph-benchmark"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-3",
+        "id_value": "c4t56h207iy0ggdbsz4q",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+                "name": "AmazonEC2ReadOnlyAccess"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {
+            "ManagedBy": "terraform",
+            "Project": "accessgraph-benchmark",
+            "Environment": "tn-clean-002"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-2",
+        "id_value": "xpllgmanuhs7sbypi290",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+                "name": "AmazonRDSReadOnlyAccess"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {
+            "ManagedBy": "terraform",
+            "Project": "accessgraph-benchmark",
+            "Environment": "tn-clean-002"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-1",
+        "id_value": "rxeums1sxuqkevg84nv4",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+                "name": "AmazonEC2ReadOnlyAccess"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {
+            "Environment": "tn-clean-002",
+            "ManagedBy": "terraform",
+            "Project": "accessgraph-benchmark"
+        }
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:role/tn-clean-002-lambda-role",
+        "id_value": "AROAQAAAAAAAJB6XWPBCD",
+        "attached_policies": [],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "lambda.amazonaws.com"
+                    }
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {
+            "Project": "accessgraph-benchmark",
+            "Environment": "tn-clean-002",
+            "ManagedBy": "terraform"
+        }
+    }
+]

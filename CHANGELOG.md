@@ -16,6 +16,16 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   which must be tracked for fixture-replay reproducibility per
   `docs/benchmark_methodology.md` Section 7.1.
 
+### Added
+- Captured IAMVulnerable fixtures for fixture-replay reproducibility:
+  10 privilege-escalation scenarios and 5 true-negative environments,
+  each containing `iam_export.json` (AccessGraph input),
+  `checkov.json`, `prowler.ocsf.json`, and `pmapper/` graph storage.
+  All captured against LocalStack (account 000000000000). Enables
+  offline benchmark runs without live AWS or LocalStack. Cross-
+  references `docs/benchmark_methodology.md` Section 7.1 (capture
+  workflow) and Section 4.2 (fixture format).
+
 ### Fixed
 - `classifyDetectionInternal` now resolves BFS path terminal IDs against
   both `snapshot.Resources` and `snapshot.Policies`. Previously the matcher

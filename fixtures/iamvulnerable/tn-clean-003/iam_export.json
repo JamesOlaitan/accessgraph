@@ -1,0 +1,97 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "tn-clean-003-user-3",
+      "UserId": "d3nyssl5t8wt8fih2qda",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-003-user-3",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/IAMReadOnlyAccess",
+          "PolicyName": "IAMReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-003-user-2",
+      "UserId": "d21pjg71vbo538amjfa4",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-003-user-2",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+          "PolicyName": "AmazonS3ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-003-user-4",
+      "UserId": "01ojong7ifgcbjcb2c8e",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-003-user-4",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+          "PolicyName": "AmazonS3ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-003-user-1",
+      "UserId": "chgeq3o08xnrqofah6gg",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-003-user-1",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/IAMReadOnlyAccess",
+          "PolicyName": "IAMReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-003-user-5",
+      "UserId": "x7ilr8mshqs09xuvlibq",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-003-user-5",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+          "PolicyName": "AmazonS3ReadOnlyAccess"
+        },
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/IAMReadOnlyAccess",
+          "PolicyName": "IAMReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "tn-clean-003-lambda-role",
+      "RoleId": "AROAQAAAAAAABHMHX2PT3",
+      "Arn": "arn:aws:iam::000000000000:role/tn-clean-003-lambda-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [],
+  "policies": []
+}

@@ -1,0 +1,133 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "l9vu1q06f739bg8dyqyw",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
+    },
+    {
+      "UserName": "privesc20-PassExistingRoleToCloudFormation-user",
+      "UserId": "cqxmzms2447hy8qv350y",
+      "Arn": "arn:aws:iam::000000000000:user/privesc20-PassExistingRoleToCloudFormation-user",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc20-PassExistingRoleToCloudFormation",
+          "PolicyName": "privesc20-PassExistingRoleToCloudFormation"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "privesc20-PassExistingRoleToCloudFormation-role",
+      "RoleId": "AROAQAAAAAAADTETWDTG5",
+      "Arn": "arn:aws:iam::000000000000:role/privesc20-PassExistingRoleToCloudFormation-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:root"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc20-PassExistingRoleToCloudFormation",
+          "PolicyName": "privesc20-PassExistingRoleToCloudFormation"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-sre-role",
+      "RoleId": "AROAQAAAAAAAFQCZIQQFS",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "privesc-sre-group",
+      "GroupId": "v980kl7ygn3pf0ylyt2h",
+      "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "privesc20-PassExistingRoleToCloudFormation",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc20-PassExistingRoleToCloudFormation",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:PassRole",
+              "cloudformation:CreateStack",
+              "cloudformation:DescribeStacks"
+            ],
+            "Effect": "Allow",
+            "Resource": "*",
+            "Sid": "VisualEditor0"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    {
+      "PolicyName": "privesc-sre-admin-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:*",
+              "ec2:*",
+              "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "privesc1-CreateNewPolicyVersion-user",
+      "UserId": "qv41fmhyrt1trrz4fevk",
+      "Arn": "arn:aws:iam::000000000000:user/privesc1-CreateNewPolicyVersion-user",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc1-CreateNewPolicyVersion",
+          "PolicyName": "privesc1-CreateNewPolicyVersion"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "privesc-sre-user",
+      "UserId": "k3ydrsgz0pne1xtf7xsc",
+      "Arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+      "AttachedManagedPolicies": [],
+      "UserPolicies": [],
+      "GroupList": [
+        "privesc-sre-group"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "privesc1-CreateNewPolicyVersion-role",
+      "RoleId": "AROAQAAAAAAAJGV7Z67BH",
+      "Arn": "arn:aws:iam::000000000000:role/privesc1-CreateNewPolicyVersion-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:root"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc1-CreateNewPolicyVersion",
+          "PolicyName": "privesc1-CreateNewPolicyVersion"
+        }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "privesc-sre-role",
+      "RoleId": "AROAQAAAAAAAJ2YFSI6UP",
+      "Arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+            },
+            "Sid": ""
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [
+    {
+      "GroupName": "privesc-sre-group",
+      "GroupId": "f1la6g1dhd3eal6fim95",
+      "Arn": "arn:aws:iam::000000000000:group/privesc-sre-group",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+          "PolicyName": "privesc-sre-admin-policy"
+        }
+      ],
+      "GroupPolicyList": []
+    }
+  ],
+  "policies": [
+    {
+      "PolicyName": "privesc1-CreateNewPolicyVersion",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc1-CreateNewPolicyVersion",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": "iam:CreatePolicyVersion",
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    {
+      "PolicyName": "privesc-sre-admin-policy",
+      "PolicyArn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+      "PolicyDocument": {
+        "Statement": [
+          {
+            "Action": [
+              "iam:*",
+              "ec2:*",
+              "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "account_id": "000000000000",
+  "users": [
+    {
+      "UserName": "tn-clean-002-user-4",
+      "UserId": "7gacacju0zc52zoq7f4g",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-4",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+          "PolicyName": "AmazonRDSReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-002-user-3",
+      "UserId": "c4t56h207iy0ggdbsz4q",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-3",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+          "PolicyName": "AmazonEC2ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-002-user-2",
+      "UserId": "xpllgmanuhs7sbypi290",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-2",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+          "PolicyName": "AmazonRDSReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    },
+    {
+      "UserName": "tn-clean-002-user-1",
+      "UserId": "rxeums1sxuqkevg84nv4",
+      "Arn": "arn:aws:iam::000000000000:user/tn-clean-002-user-1",
+      "AttachedManagedPolicies": [
+        {
+          "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+          "PolicyName": "AmazonEC2ReadOnlyAccess"
+        }
+      ],
+      "UserPolicies": [],
+      "GroupList": []
+    }
+  ],
+  "roles": [
+    {
+      "RoleName": "tn-clean-002-lambda-role",
+      "RoleId": "AROAQAAAAAAAJB6XWPBCD",
+      "Arn": "arn:aws:iam::000000000000:role/tn-clean-002-lambda-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": []
+    }
+  ],
+  "groups": [],
+  "policies": []
+}

@@ -1,0 +1,146 @@
+[
+    {
+        "arn": "arn:aws:iam::000000000000:user/privesc-AssumeRole-start-user",
+        "id_value": "0g1ra9nyigfsiott8tfn",
+        "attached_policies": [],
+        "group_memberships": [],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 1,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:user/privesc-sre-user",
+        "id_value": "v1nkm3eldlp4hzs805px",
+        "attached_policies": [],
+        "group_memberships": [
+            "arn:aws:iam::000000000000:group/privesc-sre-group"
+        ],
+        "trust_policy": null,
+        "instance_profile": null,
+        "active_password": false,
+        "access_keys": 1,
+        "is_admin": true,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role",
+        "id_value": "AROAQAAAAAAAFPRVIYWOI",
+        "attached_policies": [],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::000000000000:root"
+                    },
+                    "Sid": ""
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role",
+        "id_value": "AROAQAAAAAAAAGWR5G5A6",
+        "attached_policies": [],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role"
+                    },
+                    "Sid": ""
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": false,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:role/privesc-sre-role",
+        "id_value": "AROAQAAAAAAAKE7GWGYWB",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+                "name": "privesc-sre-admin-policy"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::000000000000:user/privesc-sre-user"
+                    },
+                    "Sid": ""
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": true,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    },
+    {
+        "arn": "arn:aws:iam::000000000000:role/privesc-AssumeRole-ending-role",
+        "id_value": "AROAQAAAAAAADAO6SQ2YX",
+        "attached_policies": [
+            {
+                "arn": "arn:aws:iam::000000000000:policy/privesc-AssumeRole-high-priv-policy",
+                "name": "privesc-AssumeRole-high-priv-policy"
+            }
+        ],
+        "group_memberships": [],
+        "trust_policy": {
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role"
+                    },
+                    "Sid": ""
+                }
+            ],
+            "Version": "2012-10-17"
+        },
+        "instance_profile": [],
+        "active_password": false,
+        "access_keys": 0,
+        "is_admin": true,
+        "permissions_boundary": null,
+        "has_mfa": false,
+        "tags": {}
+    }
+]
