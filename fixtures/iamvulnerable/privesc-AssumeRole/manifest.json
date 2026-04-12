@@ -1,0 +1,16 @@
+{
+  "name": "privesc-AssumeRole",
+  "description": "User can initiate a three-role sts:AssumeRole chain from starting-role through intermediate-role to ending-role, which has a wildcard admin policy attached. Trust policy root-principal resolution not yet implemented; BFS does not model the AWS semantics where trust on account root means any principal with sts:AssumeRole. Deferred.",
+  "chain_length_class": "multi_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc-AssumeRole-start-user",
+    "arn:aws:iam::000000000000:role/privesc-AssumeRole-starting-role",
+    "arn:aws:iam::000000000000:role/privesc-AssumeRole-intermediate-role",
+    "arn:aws:iam::000000000000:role/privesc-AssumeRole-ending-role",
+    "arn:aws:iam::000000000000:policy/privesc-AssumeRole-high-priv-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc-AssumeRole-start-user",
+  "category": "role_trust",
+  "classification_override": "FN",
+  "is_true_negative": false
+}

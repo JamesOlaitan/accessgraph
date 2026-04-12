@@ -1,0 +1,12 @@
+{
+  "name": "privesc3-CreateEC2WithExistingIP",
+  "description": "User has iam:PassRole, ec2:RunInstances, ec2:CreateKeyPair, ec2:DescribeInstances, and ec2:AssociateIamInstanceProfile on all resources, enabling launch of an EC2 instance with a privileged instance profile.",
+  "chain_length_class": "multi_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc3-CreateEC2WithExistingInstanceProfile-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc3-CreateEC2WithExistingInstanceProfile-user",
+  "category": "passrole_chain",
+  "is_true_negative": false
+}

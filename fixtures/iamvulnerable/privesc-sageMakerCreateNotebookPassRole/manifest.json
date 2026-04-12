@@ -1,0 +1,12 @@
+{
+  "name": "privesc-sageMakerCreateNotebookPassRole",
+  "description": "User has sagemaker:CreateNotebookInstance, sagemaker:CreatePresignedNotebookInstanceUrl, iam:PassRole, and iam:ListRoles on all resources, enabling creation of a SageMaker notebook instance with a privileged execution role.",
+  "chain_length_class": "multi_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc-sageMakerCreateNotebookPassRole-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc-sageMakerCreateNotebookPassRole-user",
+  "category": "passrole_chain",
+  "is_true_negative": false
+}

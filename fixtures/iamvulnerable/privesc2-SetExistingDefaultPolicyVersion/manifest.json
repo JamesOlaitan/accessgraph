@@ -1,0 +1,12 @@
+{
+  "name": "privesc2-SetExistingDefaultPolicyVersion",
+  "description": "User has iam:SetDefaultPolicyVersion on all resources. Escalation requires a pre-existing non-default policy version with elevated privileges.",
+  "chain_length_class": "two_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc2-SetExistingDefaultPolicyVersion-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc2-SetExistingDefaultPolicyVersion-user",
+  "category": "direct_policy",
+  "is_true_negative": false
+}

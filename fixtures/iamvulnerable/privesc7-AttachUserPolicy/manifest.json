@@ -1,0 +1,12 @@
+{
+  "name": "privesc7-AttachUserPolicy",
+  "description": "User has iam:AttachUserPolicy on all resources, allowing attachment of administrator-access managed policy to any user.",
+  "chain_length_class": "simple",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc7-AttachUserPolicy-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc7-AttachUserPolicy-user",
+  "category": "direct_policy",
+  "is_true_negative": false
+}

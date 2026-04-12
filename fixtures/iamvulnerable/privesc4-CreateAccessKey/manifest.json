@@ -1,0 +1,12 @@
+{
+  "name": "privesc4-CreateAccessKey",
+  "description": "User has iam:CreateAccessKey on all resources, allowing creation of access keys for any IAM user including privileged users.",
+  "chain_length_class": "simple",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc4-CreateAccessKey-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc4-CreateAccessKey-user",
+  "category": "credential_manipulation",
+  "is_true_negative": false
+}

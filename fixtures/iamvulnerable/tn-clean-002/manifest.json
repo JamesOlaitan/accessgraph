@@ -1,0 +1,9 @@
+{
+  "name": "tn-clean-002",
+  "description": "Clean IAM environment with 4 users holding EC2 and RDS read-only policies, one Lambda role with bare trust, and an S3 bucket side resource.",
+  "chain_length_class": "none",
+  "expected_attack_path": [],
+  "starting_principal_arn": "",
+  "category": "none",
+  "is_true_negative": true
+}

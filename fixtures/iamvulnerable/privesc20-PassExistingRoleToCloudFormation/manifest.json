@@ -1,0 +1,12 @@
+{
+  "name": "privesc20-PassExistingRoleToCloudFormation",
+  "description": "User has iam:PassRole, cloudformation:CreateStack, and cloudformation:DescribeStacks on all resources, enabling creation of a CloudFormation stack with a privileged service role.",
+  "chain_length_class": "multi_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc20-PassExistingRoleToCloudFormation-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc20-PassExistingRoleToCloudFormation-user",
+  "category": "passrole_chain",
+  "is_true_negative": false
+}

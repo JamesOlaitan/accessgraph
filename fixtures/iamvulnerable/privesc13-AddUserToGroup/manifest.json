@@ -1,0 +1,12 @@
+{
+  "name": "privesc13-AddUserToGroup",
+  "description": "User has iam:AddUserToGroup on all resources, allowing self-addition to the privesc-sre-group which carries the admin policy.",
+  "chain_length_class": "simple",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc13-AddUserToGroup-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc13-AddUserToGroup-user",
+  "category": "credential_manipulation",
+  "is_true_negative": false
+}

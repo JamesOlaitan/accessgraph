@@ -1,0 +1,12 @@
+{
+  "name": "privesc15-PassExistingRoleToNewLambdaThenInvoke",
+  "description": "User has iam:PassRole, lambda:CreateFunction, and lambda:InvokeFunction on all resources, enabling creation of a Lambda function with a privileged execution role and invoking it.",
+  "chain_length_class": "multi_hop",
+  "expected_attack_path": [
+    "arn:aws:iam::000000000000:user/privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
+    "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"
+  ],
+  "starting_principal_arn": "arn:aws:iam::000000000000:user/privesc15-PassExistingRoleToNewLambdaThenInvoke-user",
+  "category": "passrole_chain",
+  "is_true_negative": false
+}
