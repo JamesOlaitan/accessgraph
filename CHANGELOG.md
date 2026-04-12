@@ -8,6 +8,12 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `internal/parser/aws_iam.go` creates a Resource node for any policy
+  satisfying the admin-equivalence criteria in `findings_schema.md`
+  Section 1.1 and carrying a non-empty ARN. The Resource uses the
+  `IAMPolicy` kind derived by `resourceKindFromARN`. This allows the
+  BFS matcher to treat admin-equivalent policies as terminal targets
+  of attack paths. See `ARCHITECTURE.md` Section 6.
 - `internal/iampolicy/` package centralizing canonical
   predicates over IAM policy documents. First inhabitant is
   `IsAdminEquivalentPolicy`, which recognizes all three

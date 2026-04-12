@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JamesOlaitan/accessgraph/internal/iampolicy"
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
@@ -234,6 +235,11 @@ func (p *AWSIAMParser) ParseAWSIAM(ctx context.Context, data []byte, label strin
 	}
 	b.processManagedPolicies(export.Policies)
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	b.createAdminEquivalentResources()
+
 	// Second pass: wire edges that require all principals to be known.
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -438,6 +444,21 @@ func (b *snapshotBuilder) ensureResource(arn, id string) {
 		Kind: resourceKindFromARN(arn),
 	}
 	b.addResource(r)
+}
+
+// createAdminEquivalentResources creates a Resource node for each policy that
+// satisfies the admin-equivalence criteria and has a non-empty ARN.
+func (b *snapshotBuilder) createAdminEquivalentResources() {
+	for _, pol := range b.snap.Policies {
+		if pol.ARN == "" {
+			continue
+		}
+		if !iampolicy.IsAdminEquivalentPolicy(pol) {
+			continue
+		}
+		resID := b.resourceID(pol.ARN)
+		b.ensureResource(pol.ARN, resID)
+	}
 }
 
 // ensurePrincipalStub returns an existing principal or creates a stub principal

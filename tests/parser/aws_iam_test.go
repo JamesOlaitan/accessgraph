@@ -342,6 +342,81 @@ func TestParseAWSIAMContextCancellation(t *testing.T) {
 	}
 }
 
+// TestParseAWSIAMAdminEquivalentResource verifies that the parser creates a
+// Resource node for an admin-equivalent managed policy and does not create
+// Resource nodes for non-admin-equivalent policies.
+func TestParseAWSIAMAdminEquivalentResource(t *testing.T) {
+	const adminEquivJSON = `{
+  "account_id": "123456789012",
+  "users": [{
+    "UserName": "test-user",
+    "UserId": "AIDA001",
+    "Arn": "arn:aws:iam::123456789012:user/test-user",
+    "AttachedManagedPolicies": [{"PolicyArn": "arn:aws:iam::123456789012:policy/admin-policy", "PolicyName": "admin-policy"}],
+    "UserPolicies": [{
+      "PolicyName": "s3-reader",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::my-bucket"}]
+      }
+    }],
+    "GroupList": []
+  }],
+  "roles": [],
+  "groups": [],
+  "policies": [{
+    "PolicyName": "admin-policy",
+    "PolicyArn": "arn:aws:iam::123456789012:policy/admin-policy",
+    "PolicyDocument": {
+      "Version": "2012-10-17",
+      "Statement": [{"Effect": "Allow", "Action": "iam:*", "Resource": "*"}]
+    }
+  }]
+}`
+
+	ctx := context.Background()
+	p := parser.NewAWSIAMParser()
+
+	snap, err := p.ParseAWSIAM(ctx, []byte(adminEquivJSON), "admin-equiv-test")
+	if err != nil {
+		t.Fatalf("ParseAWSIAM: %v", err)
+	}
+
+	// Both policies must appear in snapshot.Policies (managed + inline).
+	if len(snap.Policies) < 2 {
+		t.Fatalf("expected >= 2 policies, got %d", len(snap.Policies))
+	}
+
+	adminARN := "arn:aws:iam::123456789012:policy/admin-policy"
+	bucketARN := "arn:aws:s3:::my-bucket"
+
+	resourceARNs := make(map[string]bool, len(snap.Resources))
+	for _, r := range snap.Resources {
+		resourceARNs[r.ARN] = true
+	}
+
+	if !resourceARNs[adminARN] {
+		t.Errorf("expected Resource for admin-equivalent policy ARN %q", adminARN)
+	}
+	if !resourceARNs[bucketARN] {
+		t.Errorf("expected Resource for S3 bucket ARN %q", bucketARN)
+	}
+
+	// The s3-reader inline policy has no ARN and should not appear as a Resource.
+	for _, r := range snap.Resources {
+		if r.ARN != adminARN && r.ARN != bucketARN {
+			t.Errorf("unexpected Resource with ARN %q", r.ARN)
+		}
+	}
+
+	// Verify the admin-equivalent Resource has kind IAMPolicy.
+	for _, r := range snap.Resources {
+		if r.ARN == adminARN && r.Kind != "IAMPolicy" {
+			t.Errorf("expected Kind=IAMPolicy for admin-equivalent Resource, got %q", r.Kind)
+		}
+	}
+}
+
 // TestParseAWSIAMTableDrivenEdgeCases uses table-driven tests to verify a
 // variety of edge-case inputs.
 func TestParseAWSIAMTableDrivenEdgeCases(t *testing.T) {
