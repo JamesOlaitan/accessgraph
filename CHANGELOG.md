@@ -7,6 +7,15 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.gitignore`: replaced the broad `iamvulnerable/` exclusion with a
+  root-anchored `/iamvulnerable/` rule and an explicit
+  `!fixtures/iamvulnerable/` allowlist. The original rule was added when
+  IAMVulnerable was intended to be excluded as a submodule; the capture
+  pipeline now writes captured fixtures to `fixtures/iamvulnerable/`,
+  which must be tracked for fixture-replay reproducibility per
+  `docs/benchmark_methodology.md` Section 7.1.
+
 ### Fixed
 - `classifyDetectionInternal` now resolves BFS path terminal IDs against
   both `snapshot.Resources` and `snapshot.Policies`. Previously the matcher

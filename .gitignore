@@ -40,7 +40,10 @@ benchmark_results/
 results/
 
 # IAMVulnerable working directory (populated by scripts)
-iamvulnerable/
+/iamvulnerable/
+
+# Allow captured benchmark fixtures to be tracked for reproducibility
+!fixtures/iamvulnerable/
 
 # Generated OPA bundle artifacts
 bundle.tar.gz
