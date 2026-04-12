@@ -8,6 +8,11 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `go.mod` directive relaxed from `go 1.26.1` to `go 1.25.0`. The
+  codebase uses no 1.26-specific language features or stdlib packages;
+  `log/slog` (Go 1.21) is the deepest stdlib dependency. The effective
+  minimum is 1.25.0, set by transitive dependency requirements (AWS
+  SDK v2). Broadens the evaluator pool for benchmark reproduction.
 - `.gitignore`: replaced the broad `iamvulnerable/` exclusion with a
   root-anchored `/iamvulnerable/` rule and an explicit
   `!fixtures/iamvulnerable/` allowlist. The original rule was added when
