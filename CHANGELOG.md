@@ -56,6 +56,13 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 - Re-captured fixtures for three PassRole scenarios with supplement
   resources: privesc15 (2 Lambda edges), privesc3 (4 EC2 edges),
   privesc20 (2 CloudFormation edges).
+- `make reproduce-fixtures` target and `scripts/summarize_benchmark.py`
+  for offline benchmark reproduction from committed fixtures. Builds the
+  integration binary, runs the four-tool benchmark, and prints a per-tool
+  recall summary. Requires only Go and Python 3.
+- README "Reproducing the benchmark" section with clone-and-reproduce
+  instructions, expected output table, and pointers to the methodology
+  documentation and fixture directory.
 - Captured IAMVulnerable fixtures for fixture-replay reproducibility:
   10 privilege-escalation scenarios and 5 true-negative environments,
   each containing `iam_export.json` (AccessGraph input),

@@ -41,7 +41,7 @@ are made during graph construction or traversal.
 
 ### Prerequisites
 
-- Go 1.26.1 or later ([download](https://go.dev/dl/))
+- Go 1.25 or later ([download](https://go.dev/dl/))
 - Linux or macOS; any Go-supported platform
 - No Docker, no AWS account, no external services required for basic usage
 - golangci-lint v2.11+ (for `make lint` only; not required to build or test)
@@ -219,33 +219,57 @@ This requires the `integration` build tag and external tools installed on
 | `--output` | `terminal` | Output format: `terminal` or `json` |
 | `--account-id` | (empty) | AWS account ID of the test account; used by live-AWS fixture capture |
 
-## Benchmark Reproduction
+## Reproducing the benchmark
 
-The primary quantitative claim is a precision/recall comparison of AccessGraph
-against three open-source tools on all 31 IAMVulnerable scenarios. Two
-reproduction paths are planned:
+The benchmark comparison table can be reproduced from a fresh clone with
+one command. No AWS credentials, Docker, LocalStack, or external tools
+(Prowler, PMapper, Checkov) are required.
 
-### Offline reproduction (no AWS account required)
+**Prerequisites:** Go 1.25+ and Python 3.8+.
 
-**Status: deferred -- not yet implemented.**
+```
+git clone https://github.com/JamesOlaitan/accessgraph.git
+cd accessgraph
+make reproduce-fixtures
+```
 
-`make reproduce-fixtures` will validate the analysis pipeline against golden
-fixture files derived from IAMVulnerable scenario exports. This path allows
-reviewers to verify the detection logic and metric computation without
-deploying infrastructure. Fixture generation and checksums are pending.
+This builds the integration binary, runs the four-tool benchmark against the
+committed fixtures in `fixtures/iamvulnerable/`, and prints a per-tool recall
+summary. Expected output (as of the most recent benchmark run committed to
+this repository):
+
+```
+Per-tool recall on vulnerable scenarios (tn-clean excluded):
+Tool              TP   FN   Recall
+-----------------------------------
+accessgraph        9    1      90%
+checkov           10    0     100%
+pmapper            7    3      70%
+prowler           10    0     100%
+
+Full JSON output: build/reproduction-result.json
+```
+
+The full structured JSON result (per-scenario labels, confidence intervals,
+chain-length class breakdowns) is written to `build/reproduction-result.json`.
+See `docs/benchmark_methodology.md` Section 4.5 for interpretation of the
+per-tool numbers, including why Prowler and Checkov achieve 100% and why
+PMapper's 70% reflects both architectural coverage gaps and a capture-environment
+limitation (LocalStack does not support SageMaker).
+
+The fixtures in `fixtures/iamvulnerable/` are committed artifacts captured
+against LocalStack. Each scenario directory contains `iam_export.json`
+(AccessGraph input), `checkov.json`, `prowler.ocsf.json`, PMapper graph
+storage, and `pmapper_findings.json`. The reproduction replays these
+fixtures offline without invoking any external tool binary.
 
 ### Live AWS reproduction
 
-**Status: deferred -- not yet implemented.**
-
-`make reproduce` will automate the full benchmark: deploy IAMVulnerable to an
-AWS account, export IAM state, run all four tools, and produce the comparison
-report. This requires an AWS account and the external tools listed in
-[Prerequisites](#prerequisites). Estimated cost per run is under $5 USD.
-
-See `docs/benchmark_methodology.md` for the full methodology specification,
-including detection matching rules, confidence interval computation, timeout
-handling, and tool version pinning.
+Full live-AWS reproduction (deploy IAMVulnerable, capture fresh fixtures,
+run all tools) is tracked as future work. The live capture workflow requires
+Docker and LocalStack (or AWS credentials with deploy permissions for an
+actual account); the offline reproduction described above does not. See
+`docs/benchmark_methodology.md` Section 7.1 for the planned workflow.
 
 ### Capturing benchmark fixtures against LocalStack
 
