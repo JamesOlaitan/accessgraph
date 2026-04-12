@@ -7,6 +7,13 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `classifyDetectionInternal` now resolves BFS path terminal IDs against
+  both `snapshot.Resources` and `snapshot.Policies`. Previously the matcher
+  only checked `snapshot.Resources`, so paths terminating at a sensitive
+  Policy node (the common case for wildcard-permission escalation scenarios)
+  were invisible to the matcher and always scored FN.
+
 ### Added
 - `internal/parser/aws_iam.go` creates a Resource node for any policy
   satisfying the admin-equivalence criteria in `findings_schema.md`

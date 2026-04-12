@@ -152,6 +152,30 @@ func TestAdminEquivalenceDefinition(t *testing.T) {
 			wantLabel: model.LabelFN,
 		},
 
+		// Policy node resolution: TP.
+		// BFS terminates at a sensitive Policy node whose ID is NOT in
+		// snapshot.Resources but IS in snapshot.Policies. The matcher must
+		// resolve the terminal against snapshot.Policies as a fallback.
+		{
+			name: "TP_policy_node_id_resolution",
+			br:   makeBlastRadius("000000000000::Policy::privesc-sre-admin-policy"),
+			sc: makeScenario(
+				[]string{principalARN, "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy"},
+				false,
+			),
+			snapshot: &model.Snapshot{
+				ID:        "snap-policy-node",
+				Resources: []*model.Resource{},
+				Policies: []*model.Policy{
+					{
+						ID:  "000000000000::Policy::privesc-sre-admin-policy",
+						ARN: "arn:aws:iam::000000000000:policy/privesc-sre-admin-policy",
+					},
+				},
+			},
+			wantLabel: model.LabelTP,
+		},
+
 		// True-negative scenario with no paths: TN.
 		// The scenario is a true-negative (IsTrueNegative=true) and no paths were
 		// found. The function must return LabelTN.

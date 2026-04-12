@@ -304,11 +304,20 @@ func classifyDetectionInternal(br *model.BlastRadiusReport, sc *model.Scenario, 
 			resourceARNByID[r.ID] = r.ARN
 		}
 	}
+	policyARNByID := make(map[string]string, len(snapshot.Policies))
+	for _, pol := range snapshot.Policies {
+		if pol != nil && pol.ARN != "" {
+			policyARNByID[pol.ID] = pol.ARN
+		}
+	}
 	for _, path := range br.Paths {
 		if path == nil {
 			continue
 		}
 		if arn, ok := resourceARNByID[path.ToResourceID]; ok && arn == expectedTerminalARN {
+			return model.LabelTP
+		}
+		if arn, ok := policyARNByID[path.ToResourceID]; ok && arn == expectedTerminalARN {
 			return model.LabelTP
 		}
 	}
