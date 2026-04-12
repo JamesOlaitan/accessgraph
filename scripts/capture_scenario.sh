@@ -24,6 +24,7 @@
 #   fixtures/iamvulnerable/<scenario-name>/
 #     ├── iam_export.json
 #     ├── pmapper/000000000000/
+#     ├── pmapper_findings.json
 #     ├── prowler.ocsf.json
 #     └── checkov.json
 #
@@ -31,6 +32,7 @@
 #   fixtures/iamvulnerable/<tn-name>/
 #     ├── iam_export.json
 #     ├── pmapper/000000000000/
+#     ├── pmapper_findings.json
 #     ├── prowler.ocsf.json
 #     └── checkov.json
 #
@@ -164,7 +166,7 @@ docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker run -d \
     --name "$CONTAINER_NAME" \
     -p 4566:4566 \
-    -e SERVICES=iam,sts,lambda \
+    -e SERVICES=iam,sts,lambda,ec2,cloudformation \
     -v /var/run/docker.sock:/var/run/docker.sock \
     "$LOCALSTACK_IMAGE" >/dev/null
 
@@ -189,6 +191,15 @@ if [[ "$MODE" == "vulnerable" ]]; then
     cp "${PRIVESC_DIR}/${SCENARIO}.tf" "$WORK_DIR/"
     cp "${PRIVESC_DIR}/sre.tf" "$WORK_DIR/"
     cp "${PRIVESC_DIR}/variables.tf" "$WORK_DIR/"
+
+    # Copy supplementary terraform if one exists for this scenario.
+    # Supplements add target resources (service-assumable roles, instance
+    # profiles) that PMapper's edge modules require for edge construction.
+    SUPPLEMENT="${REPO_ROOT}/terraform/localstack-supplements/${SCENARIO}.tf"
+    if [[ -f "$SUPPLEMENT" ]]; then
+        cp "$SUPPLEMENT" "${WORK_DIR}/supplement_${SCENARIO}.tf"
+        echo "copied supplement: ${SCENARIO}.tf" >&2
+    fi
 
     # Provider config for LocalStack. Named *_override.tf so Terraform
     # merges it with the base configuration. For vulnerable mode, the
@@ -318,6 +329,20 @@ else
 fi
 rm -rf "$PMAPPER_TMP"
 
+# 2b. PMapper privilege escalation analysis (runs against captured graph storage).
+echo "  [2b/4] PMapper analysis..." >&2
+docker run --rm \
+    -e PMAPPER_STORAGE=/storage \
+    -v "${FIXTURE_DIR}/pmapper:/storage:ro" \
+    --entrypoint /opt/venv-prowler/bin/pmapper \
+    "$BENCHMARK_IMAGE" \
+    --account "$LOCALSTACK_ACCOUNT_ID" analysis --output-type json \
+    > "${FIXTURE_DIR}/pmapper_findings.json" 2>/dev/null
+
+if [[ ! -s "${FIXTURE_DIR}/pmapper_findings.json" ]]; then
+    echo "WARNING: PMapper analysis produced empty output" >&2
+fi
+
 # 3. Prowler (runs in benchmark Docker image).
 echo "  [3/4] Prowler scan..." >&2
 PROWLER_TMP=$(mktemp -d)
@@ -370,7 +395,7 @@ fi
 echo "" >&2
 echo "--- capture complete ---" >&2
 echo "${FIXTURE_DIR}/" >&2
-for f in iam_export.json prowler.ocsf.json checkov.json; do
+for f in iam_export.json pmapper_findings.json prowler.ocsf.json checkov.json; do
     if [[ -f "${FIXTURE_DIR}/${f}" ]]; then
         SIZE=$(du -h "${FIXTURE_DIR}/${f}" | cut -f1)
         echo "  ${f}  (${SIZE})" >&2
