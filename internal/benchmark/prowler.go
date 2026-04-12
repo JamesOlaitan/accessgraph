@@ -22,9 +22,38 @@ import (
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
 
+// prowlerPrivescCheckIDs lists Prowler check IDs whose FAIL findings indicate
+// a privilege escalation risk. The adapter filters to this set before matching
+// against ExpectedAttackPath. Without this filter, unrelated FAIL findings
+// (MFA checks, password policy, CloudTrail logging, etc.) whose
+// resources[].uid happens to match an ExpectedAttackPath ARN produce false
+// matches that inflate Prowler's recall.
+//
+// Check IDs are the short names extracted from the OCSF finding_info.uid
+// field (e.g., "iam_policy_allows_privilege_escalation" from
+// "prowler-aws-iam_policy_allows_privilege_escalation-000000000000-...").
+// Verified against Prowler 5.20.0 (prowler aws --list-checks).
+var prowlerPrivescCheckIDs = map[string]bool{
+	"iam_policy_allows_privilege_escalation":                    true,
+	"iam_inline_policy_allows_privilege_escalation":             true,
+	"iam_no_custom_policy_permissive_role_assumption":           true,
+	"iam_customer_attached_policy_no_administrative_privileges": true,
+	"iam_inline_policy_no_administrative_privileges":            true,
+	"iam_role_administratoraccess_policy":                       true,
+	"iam_user_administrator_access_policy":                      true,
+	"iam_group_administrator_access_policy":                     true,
+}
+
 // prowlerOCSFResource is a single resource entry in a Prowler OCSF finding.
 type prowlerOCSFResource struct {
 	// UID is the resource identifier, typically an ARN.
+	UID string `json:"uid"`
+}
+
+// prowlerOCSFFindingInfo holds the finding_info sub-object of an OCSF record.
+type prowlerOCSFFindingInfo struct {
+	// UID encodes the check name, account, region, and resource as a composite
+	// string. Format: "prowler-aws-<check_name>-<account_id>-<region>-<resource>".
 	UID string `json:"uid"`
 }
 
@@ -33,10 +62,14 @@ type prowlerOCSFResource struct {
 //
 // Prowler 5.20.0's --output-formats json-ocsf produces an array of OCSF
 // Detection Finding objects. The status_code field contains "FAIL" or "PASS".
-// Resource ARNs are in resources[].uid.
+// Resource ARNs are in resources[].uid. The check name is embedded in
+// finding_info.uid.
 type prowlerOCSFFinding struct {
 	// StatusCode is "FAIL" for a detected issue or "PASS" for a compliant check.
 	StatusCode string `json:"status_code"`
+
+	// FindingInfo contains the finding UID from which the check name is extracted.
+	FindingInfo prowlerOCSFFindingInfo `json:"finding_info"`
 
 	// Resources is the list of resources associated with this finding.
 	Resources []prowlerOCSFResource `json:"resources"`
@@ -66,11 +99,15 @@ func (a *prowlerAdapter) Invoke(_ context.Context, _, scenarioDir string) (stdou
 // attack path was detected.
 //
 // The output is parsed as []prowlerOCSFFinding. Each finding has a status_code
-// field ("FAIL" or "PASS") and a resources array where each resource has a uid
-// field (the resource ARN).
+// field ("FAIL" or "PASS"), a finding_info.uid field encoding the check name,
+// and a resources array where each resource has a uid field (the resource ARN).
+//
+// Only findings whose check name appears in prowlerPrivescCheckIDs are
+// considered. This prevents unrelated compliance findings (MFA, password
+// policy, CloudTrail logging) from matching ExpectedAttackPath ARNs.
 //
 // Returns true if any expected path node exactly matches a resource UID from a
-// FAIL finding.
+// filtered FAIL finding.
 func (a *prowlerAdapter) Parse(stdout []byte, expected model.Scenario) (bool, error) {
 	var findings []prowlerOCSFFinding
 	if parseErr := json.Unmarshal(stdout, &findings); parseErr != nil {
@@ -79,11 +116,16 @@ func (a *prowlerAdapter) Parse(stdout []byte, expected model.Scenario) (bool, er
 
 	failARNs := make(map[string]bool)
 	for _, f := range findings {
-		if strings.EqualFold(f.StatusCode, "FAIL") {
-			for _, r := range f.Resources {
-				if r.UID != "" {
-					failARNs[r.UID] = true
-				}
+		if !strings.EqualFold(f.StatusCode, "FAIL") {
+			continue
+		}
+		checkName := extractProwlerCheckName(f.FindingInfo.UID)
+		if !prowlerPrivescCheckIDs[checkName] {
+			continue
+		}
+		for _, r := range f.Resources {
+			if r.UID != "" {
+				failARNs[r.UID] = true
 			}
 		}
 	}
@@ -93,6 +135,36 @@ func (a *prowlerAdapter) Parse(stdout []byte, expected model.Scenario) (bool, er
 		}
 	}
 	return false, nil
+}
+
+// extractProwlerCheckName extracts the Prowler check name from an OCSF
+// finding_info.uid string. The UID format is
+// "prowler-aws-<check_name>-<account_id>-<region>-<resource>". The check name
+// uses underscores while the other components use hyphens, so splitting on the
+// first account ID occurrence reliably isolates it.
+func extractProwlerCheckName(uid string) string {
+	const prefix = "prowler-aws-"
+	if !strings.HasPrefix(uid, prefix) {
+		return ""
+	}
+	rest := uid[len(prefix):]
+	// Account IDs in LocalStack are "000000000000"; real accounts are 12 digits.
+	// Split on the first occurrence of "-" followed by 12 digits.
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == '-' && i+13 <= len(rest) {
+			allDigits := true
+			for j := i + 1; j <= i+12; j++ {
+				if rest[j] < '0' || rest[j] > '9' {
+					allDigits = false
+					break
+				}
+			}
+			if allDigits && (i+13 == len(rest) || rest[i+13] == '-') {
+				return rest[:i]
+			}
+		}
+	}
+	return rest
 }
 
 // readProwlerFixture reads the first *.ocsf.json file from dir.

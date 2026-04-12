@@ -2,19 +2,53 @@
 
 // Package benchmark — Checkov adapter.
 //
-// Checkov exits non-zero when violations are found. Non-zero exit is not an error.
+// The benchmark execution model for Checkov is replay-from-captured-output:
+// the adapter reads a captured checkov.json file from the scenario fixture
+// directory rather than invoking the Checkov binary. The live Checkov scan
+// is performed at capture time by capture_scenario.sh. See
+// docs/benchmark_methodology.md §3.3 and §7.0.
 package benchmark
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/JamesOlaitan/accessgraph/internal/model"
 )
+
+// CheckovFixtureFilename is the canonical filename for the captured Checkov
+// output within each scenario directory.
+const CheckovFixtureFilename = "checkov.json"
+
+// checkovPrivescCheckIDs lists Checkov check IDs whose failed findings
+// indicate a privilege escalation risk. The adapter filters to this set
+// before matching against ExpectedAttackPath. Without this filter, unrelated
+// failed checks (SSO enforcement, wildcard statements, policy attachment
+// hygiene) inflate recall.
+//
+// Check IDs verified against Checkov 3.2.509 (bridgecrewio/checkov).
+// Source: https://www.checkov.io/5.Policy%20Index/terraform.html
+var checkovPrivescCheckIDs = map[string]bool{
+	"CKV_AWS_286": true, // IAM policies do not allow privilege escalation
+	"CKV_AWS_287": true, // IAM policies do not allow credentials exposure
+	"CKV_AWS_289": true, // IAM policies do not allow permissions management without constraints
+}
+
+// checkovTFResourceToARNSuffix maps Terraform IAM resource types to the
+// corresponding IAM ARN type/name suffix. Checkov outputs Terraform resource
+// labels (e.g., "aws_iam_policy.my-policy") rather than AWS ARNs. The adapter
+// uses this mapping to construct ARN suffixes for matching against
+// ExpectedAttackPath.
+var checkovTFResourceToARNSuffix = map[string]string{
+	"aws_iam_policy": "policy/",
+	"aws_iam_user":   "user/",
+	"aws_iam_role":   "role/",
+	"aws_iam_group":  "group/",
+}
 
 // checkovResult is the top-level structure of Checkov's JSON output when
 // invoked with --output json.
@@ -48,94 +82,78 @@ type checkovAdapter struct{}
 // Compile-time assertion that *checkovAdapter satisfies ToolAdapter.
 var _ ToolAdapter = (*checkovAdapter)(nil)
 
-// Invoke runs Checkov against the scenario directory.
-func (a *checkovAdapter) Invoke(ctx context.Context, binaryPath, scenarioDir string) (stdout, stderr []byte, err error) {
-	return runCheckov(ctx, binaryPath, scenarioDir)
+// Invoke reads captured Checkov JSON output from the scenario fixture directory.
+// Checkov cannot be meaningfully re-executed offline against IAM export JSON; its
+// Terraform framework scanner operates on .tf source files, which are only
+// available inside the Docker image at capture time. The captured output file is
+// the canonical fixture.
+func (a *checkovAdapter) Invoke(_ context.Context, _, scenarioDir string) (stdout, stderr []byte, err error) {
+	data, readErr := readCheckovFixture(scenarioDir)
+	if readErr != nil {
+		return nil, nil, fmt.Errorf("%w: %v", ErrToolFailed, readErr)
+	}
+	return data, nil, nil
 }
 
 // Parse interprets Checkov's JSON output to determine whether the expected
 // attack path was detected.
 //
-// Parameters:
-//   - stdout: combined stdout from the checkov invocation.
-//   - expected: the scenario being evaluated.
+// Checkov outputs Terraform resource labels (e.g., "aws_iam_policy.my-policy")
+// as the resource identifier, not AWS ARNs. The parser converts these to ARN
+// suffixes and checks whether any ExpectedAttackPath element ends with that
+// suffix. Only findings whose check ID appears in checkovPrivescCheckIDs are
+// considered.
 //
-// Returns:
-//   - true if any expected path node exactly matches a resource ID from a HIGH or
-//     CRITICAL failed check.
-//
-// Errors:
-//   - ErrToolFailed if the output cannot be parsed as JSON.
+// Returns true if any expected path node matches a converted resource from a
+// filtered failed check.
 func (a *checkovAdapter) Parse(stdout []byte, expected model.Scenario) (bool, error) {
 	var result checkovResult
 	if parseErr := json.Unmarshal(stdout, &result); parseErr != nil {
 		return false, fmt.Errorf("%w: parsing checkov JSON: %v", ErrToolFailed, parseErr)
 	}
 
-	resourceIDs := make(map[string]bool, len(result.Results.FailedChecks))
+	arnSuffixes := make(map[string]bool)
 	for _, check := range result.Results.FailedChecks {
-		sev := strings.ToUpper(check.Severity)
-		if sev == "HIGH" || sev == "CRITICAL" || sev == "" {
-			// Include checks with empty severity to handle older Checkov
-			// versions that do not emit severity in their JSON output.
-			resourceIDs[check.Resource] = true
+		if !checkovPrivescCheckIDs[check.CheckID] {
+			continue
+		}
+		suffix := checkovResourceToARNSuffix(check.Resource)
+		if suffix != "" {
+			arnSuffixes[suffix] = true
 		}
 	}
 	for _, node := range expected.ExpectedAttackPath {
-		if node != "" && resourceIDs[node] {
-			return true, nil
+		if node == "" {
+			continue
+		}
+		for suffix := range arnSuffixes {
+			if strings.HasSuffix(node, suffix) {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
 }
 
-// runCheckov invokes the Checkov binary against the scenario directory and
-// returns stdout and stderr separately.
+// checkovResourceToARNSuffix converts a Terraform resource label to the
+// corresponding IAM ARN suffix. For example:
 //
-// Checkov is invoked as:
+//	"aws_iam_policy.my-policy" -> ":policy/my-policy"
 //
-//	checkov -d <scenarioDir> --framework terraform --output json
-//
-// Parameters:
-//   - ctx: context for timeout and cancellation.
-//   - binaryPath: path to the Checkov binary.
-//   - scenarioDir: path to the directory containing the scenario's policy JSON files.
-//
-// Returns stdout and stderr as separate byte slices.
-//
-// Errors:
-//   - ErrToolNotFound if the Checkov binary cannot be located.
-//   - ErrToolFailed if Checkov exits with an unexpected status.
-func runCheckov(ctx context.Context, binaryPath, scenarioDir string) ([]byte, []byte, error) {
-	if _, err := exec.LookPath(binaryPath); err != nil {
-		return nil, nil, fmt.Errorf("%w: %q: %v", ErrToolNotFound, binaryPath, err)
+// Returns an empty string if the resource type is not a recognized IAM type.
+func checkovResourceToARNSuffix(resource string) string {
+	parts := strings.SplitN(resource, ".", 2)
+	if len(parts) != 2 {
+		return ""
 	}
-
-	args := []string{
-		"-d", scenarioDir,
-		"--framework", "terraform",
-		"--output", "json",
+	prefix, ok := checkovTFResourceToARNSuffix[parts[0]]
+	if !ok {
+		return ""
 	}
+	return ":" + prefix + parts[1]
+}
 
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, binaryPath, args...) //nolint:gosec
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	err := cmd.Run()
-
-	if err != nil {
-		// Checkov exits 1 when checks fail (findings present); this is expected.
-		// Any other non-zero exit code is treated as an execution failure.
-		var ee *exec.ExitError
-		if isExitError(err, &ee) {
-			if ee.ExitCode() != 1 {
-				return nil, nil, fmt.Errorf("%w: checkov exited %d: %s",
-					ErrToolFailed, ee.ExitCode(), strings.TrimSpace(stderrBuf.String()))
-			}
-		} else {
-			return nil, nil, fmt.Errorf("%w: running checkov: %v", ErrToolFailed, err)
-		}
-	}
-
-	return stdoutBuf.Bytes(), stderrBuf.Bytes(), nil
+// readCheckovFixture reads the checkov.json file from dir.
+func readCheckovFixture(dir string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(dir, CheckovFixtureFilename))
 }

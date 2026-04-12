@@ -28,11 +28,22 @@ type prowlerOCSFResourceStub struct {
 	UID string `json:"uid"`
 }
 
+// prowlerOCSFFindingInfoStub mirrors prowlerOCSFFindingInfo.
+type prowlerOCSFFindingInfoStub struct {
+	UID string `json:"uid"`
+}
+
 // prowlerOCSFFindingStub mirrors prowlerOCSFFinding so we can construct test
 // JSON without importing the unexported type.
 type prowlerOCSFFindingStub struct {
-	StatusCode string                    `json:"status_code"`
-	Resources  []prowlerOCSFResourceStub `json:"resources"`
+	StatusCode  string                     `json:"status_code"`
+	FindingInfo prowlerOCSFFindingInfoStub `json:"finding_info"`
+	Resources   []prowlerOCSFResourceStub  `json:"resources"`
+}
+
+// prowlerFindingUID builds a Prowler-format finding_info.uid from a check name.
+func prowlerFindingUID(checkName string) string {
+	return "prowler-aws-" + checkName + "-000000000000-us-east-1-test"
 }
 
 func TestProwlerAdapterParse(t *testing.T) {
@@ -49,6 +60,8 @@ func TestProwlerAdapterParse(t *testing.T) {
 		ExpectedAttackPath:   []string{targetARN, "arn:aws:iam::aws:policy/AdministratorAccess"},
 	}
 
+	privescUID := prowlerFindingUID("iam_policy_allows_privilege_escalation")
+
 	cases := []struct {
 		name        string
 		stdout      []byte
@@ -59,8 +72,8 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "true_positive_exact_match",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
-				{StatusCode: "PASS", Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
+				{StatusCode: "FAIL", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
+				{StatusCode: "PASS", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: true,
@@ -68,7 +81,7 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "true_positive_status_code_case_insensitive",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "fail", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
+				{StatusCode: "fail", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: true,
@@ -76,7 +89,7 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "false_negative_no_matching_arn",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
+				{StatusCode: "FAIL", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: otherARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: false,
@@ -84,7 +97,7 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "false_negative_matching_arn_is_pass",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "PASS", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
+				{StatusCode: "PASS", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario:   baseScenario,
 			wantDetect: false,
@@ -105,7 +118,7 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "empty_expected_attack_path_never_detects",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
+				{StatusCode: "FAIL", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{{UID: targetARN}}},
 			}),
 			scenario: model.Scenario{
 				ID:                   "no-path",
@@ -117,7 +130,7 @@ func TestProwlerAdapterParse(t *testing.T) {
 		{
 			name: "multiple_resources_per_finding",
 			stdout: mustMarshal(t, []prowlerOCSFFindingStub{
-				{StatusCode: "FAIL", Resources: []prowlerOCSFResourceStub{
+				{StatusCode: "FAIL", FindingInfo: prowlerOCSFFindingInfoStub{UID: privescUID}, Resources: []prowlerOCSFResourceStub{
 					{UID: otherARN},
 					{UID: targetARN},
 				}},
@@ -146,6 +159,78 @@ func TestProwlerAdapterParse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestProwlerParseCheckIDAllowlist verifies that the allowlist filter excludes
+// non-privesc FAIL findings whose resources match ExpectedAttackPath. A
+// privesc-relevant finding and an MFA finding both target the same ARN; only
+// the privesc finding should count.
+func TestProwlerParseCheckIDAllowlist(t *testing.T) {
+	const targetARN = "arn:aws:iam::000000000000:user/test-user"
+
+	scenario := model.Scenario{
+		ID:                 "iamvulnerable-allowlist-test",
+		ExpectedAttackPath: []string{targetARN},
+	}
+
+	t.Run("privesc_finding_matches", func(t *testing.T) {
+		stdout := mustMarshal(t, []prowlerOCSFFindingStub{
+			{
+				StatusCode:  "FAIL",
+				FindingInfo: prowlerOCSFFindingInfoStub{UID: prowlerFindingUID("iam_policy_allows_privilege_escalation")},
+				Resources:   []prowlerOCSFResourceStub{{UID: targetARN}},
+			},
+		})
+		adapter := benchmark.NewProwlerAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if !got {
+			t.Error("privesc finding should match; got FN, want TP")
+		}
+	})
+
+	t.Run("mfa_finding_excluded", func(t *testing.T) {
+		stdout := mustMarshal(t, []prowlerOCSFFindingStub{
+			{
+				StatusCode:  "FAIL",
+				FindingInfo: prowlerOCSFFindingInfoStub{UID: prowlerFindingUID("iam_user_hardware_mfa_enabled")},
+				Resources:   []prowlerOCSFResourceStub{{UID: targetARN}},
+			},
+		})
+		adapter := benchmark.NewProwlerAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if got {
+			t.Error("MFA finding should be excluded by allowlist; got TP, want FN")
+		}
+	})
+
+	t.Run("mixed_only_privesc_counts", func(t *testing.T) {
+		stdout := mustMarshal(t, []prowlerOCSFFindingStub{
+			{
+				StatusCode:  "FAIL",
+				FindingInfo: prowlerOCSFFindingInfoStub{UID: prowlerFindingUID("iam_user_hardware_mfa_enabled")},
+				Resources:   []prowlerOCSFResourceStub{{UID: targetARN}},
+			},
+			{
+				StatusCode:  "FAIL",
+				FindingInfo: prowlerOCSFFindingInfoStub{UID: prowlerFindingUID("iam_policy_no_full_access_to_kms")},
+				Resources:   []prowlerOCSFResourceStub{{UID: targetARN}},
+			},
+		})
+		adapter := benchmark.NewProwlerAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if got {
+			t.Error("no privesc findings present; got TP, want FN")
+		}
+	})
 }
 
 // pmapperFindingStub mirrors the pmapperFinding type.
@@ -189,7 +274,7 @@ func TestPMapperAdapterParse(t *testing.T) {
 				Account: accountID,
 				Findings: []pmapperFindingStub{
 					{
-						Title:       "IAM Principal Can Escalate Privileges",
+						Title:       "IAM Principals Can Escalate Privileges",
 						Severity:    "High",
 						Description: "* user/attacker can escalate privileges by accessing the administrative principal role/AdminRole:\n   * user/attacker can access via sts:AssumeRole role/AdminRole\n",
 					},
@@ -204,7 +289,7 @@ func TestPMapperAdapterParse(t *testing.T) {
 				Account: accountID,
 				Findings: []pmapperFindingStub{
 					{
-						Title:       "IAM Principal Can Escalate Privileges",
+						Title:       "IAM Principals Can Escalate Privileges",
 						Severity:    "High",
 						Description: "* user/irrelevant can access role/AdminRole\n",
 					},
@@ -219,7 +304,7 @@ func TestPMapperAdapterParse(t *testing.T) {
 				Account: accountID,
 				Findings: []pmapperFindingStub{
 					{
-						Title:       "IAM Principal Can Escalate Privileges",
+						Title:       "IAM Principals Can Escalate Privileges",
 						Severity:    "High",
 						Description: "* user/irrelevant can access role/SomeOtherRole\n",
 					},
@@ -250,7 +335,7 @@ func TestPMapperAdapterParse(t *testing.T) {
 				Account: "999999999999",
 				Findings: []pmapperFindingStub{
 					{
-						Title:       "IAM Principal Can Escalate Privileges",
+						Title:       "IAM Principals Can Escalate Privileges",
 						Severity:    "High",
 						Description: "* user/attacker can access role/AdminRole\n",
 					},
@@ -291,7 +376,7 @@ func TestPMapperParseFiltersByTitle(t *testing.T) {
 		Account: "123456789012",
 		Findings: []pmapperFindingStub{
 			{
-				Title:       "IAM Principal Can Escalate Privileges",
+				Title:       "IAM Principals Can Escalate Privileges",
 				Severity:    "High",
 				Description: "* user/unrelated-attacker can escalate privileges by accessing role/unrelated-target\n",
 			},
@@ -324,7 +409,7 @@ func TestPMapperParsePrivescMatch(t *testing.T) {
 		Account: "123456789012",
 		Findings: []pmapperFindingStub{
 			{
-				Title:       "IAM Principal Can Escalate Privileges",
+				Title:       "IAM Principals Can Escalate Privileges",
 				Severity:    "High",
 				Description: "* user/escalation-user can escalate privileges by accessing role/admin-role\n",
 			},
@@ -362,16 +447,17 @@ type checkovCheckStub struct {
 
 func TestCheckovAdapterParse(t *testing.T) {
 	const (
-		targetResource = "arn:aws:iam::123456789012:user/attacker"
-		otherResource  = "arn:aws:iam::123456789012:user/nobody"
-		startingARN    = "arn:aws:iam::123456789012:user/attacker"
+		targetTFLabel = "aws_iam_user.attacker"
+		otherTFLabel  = "aws_iam_user.nobody"
+		targetARN     = "arn:aws:iam::123456789012:user/attacker"
+		startingARN   = "arn:aws:iam::123456789012:user/attacker"
 	)
 
 	baseScenario := model.Scenario{
 		ID:                   "iamvulnerable-checkov-test",
 		Name:                 "AttachUserPolicy",
 		StartingPrincipalARN: startingARN,
-		ExpectedAttackPath:   []string{targetResource},
+		ExpectedAttackPath:   []string{targetARN},
 	}
 
 	cases := []struct {
@@ -382,11 +468,11 @@ func TestCheckovAdapterParse(t *testing.T) {
 		wantErrWrap error
 	}{
 		{
-			name: "true_positive_high_severity",
+			name: "true_positive_privesc_check",
 			stdout: mustMarshal(t, checkovResultStub{
 				Results: checkovResultsStub{
 					FailedChecks: []checkovCheckStub{
-						{CheckID: "CKV_AWS_40", Severity: "HIGH", Resource: targetResource},
+						{CheckID: "CKV_AWS_286", Severity: "HIGH", Resource: targetTFLabel},
 					},
 				},
 			}),
@@ -394,11 +480,11 @@ func TestCheckovAdapterParse(t *testing.T) {
 			wantDetect: true,
 		},
 		{
-			name: "true_positive_critical_severity",
+			name: "true_positive_credentials_exposure_check",
 			stdout: mustMarshal(t, checkovResultStub{
 				Results: checkovResultsStub{
 					FailedChecks: []checkovCheckStub{
-						{CheckID: "CKV_AWS_40", Severity: "CRITICAL", Resource: targetResource},
+						{CheckID: "CKV_AWS_287", Severity: "CRITICAL", Resource: targetTFLabel},
 					},
 				},
 			}),
@@ -406,11 +492,11 @@ func TestCheckovAdapterParse(t *testing.T) {
 			wantDetect: true,
 		},
 		{
-			name: "true_positive_empty_severity_older_checkov",
+			name: "true_positive_permissions_management_check",
 			stdout: mustMarshal(t, checkovResultStub{
 				Results: checkovResultsStub{
 					FailedChecks: []checkovCheckStub{
-						{CheckID: "CKV_AWS_40", Severity: "", Resource: targetResource},
+						{CheckID: "CKV_AWS_289", Severity: "", Resource: targetTFLabel},
 					},
 				},
 			}),
@@ -418,11 +504,11 @@ func TestCheckovAdapterParse(t *testing.T) {
 			wantDetect: true,
 		},
 		{
-			name: "false_negative_low_severity_excluded",
+			name: "false_negative_non_privesc_check_excluded",
 			stdout: mustMarshal(t, checkovResultStub{
 				Results: checkovResultsStub{
 					FailedChecks: []checkovCheckStub{
-						{CheckID: "CKV_AWS_40", Severity: "LOW", Resource: targetResource},
+						{CheckID: "CKV_AWS_40", Severity: "HIGH", Resource: targetTFLabel},
 					},
 				},
 			}),
@@ -434,7 +520,7 @@ func TestCheckovAdapterParse(t *testing.T) {
 			stdout: mustMarshal(t, checkovResultStub{
 				Results: checkovResultsStub{
 					FailedChecks: []checkovCheckStub{
-						{CheckID: "CKV_AWS_40", Severity: "HIGH", Resource: otherResource},
+						{CheckID: "CKV_AWS_286", Severity: "HIGH", Resource: otherTFLabel},
 					},
 				},
 			}),
@@ -479,4 +565,72 @@ func TestCheckovAdapterParse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCheckovParseCheckIDAllowlist verifies that the allowlist filter excludes
+// non-privesc failed checks even when the resource matches ExpectedAttackPath.
+// CKV_AWS_286 on aws_iam_policy.test-policy should produce a TP; an unrelated
+// check on the same resource should not.
+func TestCheckovParseCheckIDAllowlist(t *testing.T) {
+	const targetARN = "arn:aws:iam::000000000000:policy/test-policy"
+
+	scenario := model.Scenario{
+		ID:                 "iamvulnerable-checkov-allowlist",
+		ExpectedAttackPath: []string{targetARN},
+	}
+
+	t.Run("privesc_check_matches", func(t *testing.T) {
+		stdout := mustMarshal(t, checkovResultStub{
+			Results: checkovResultsStub{
+				FailedChecks: []checkovCheckStub{
+					{CheckID: "CKV_AWS_286", Severity: "HIGH", Resource: "aws_iam_policy.test-policy"},
+				},
+			},
+		})
+		adapter := benchmark.NewCheckovAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if !got {
+			t.Error("CKV_AWS_286 finding should match; got FN, want TP")
+		}
+	})
+
+	t.Run("unrelated_check_excluded", func(t *testing.T) {
+		stdout := mustMarshal(t, checkovResultStub{
+			Results: checkovResultsStub{
+				FailedChecks: []checkovCheckStub{
+					{CheckID: "CKV_AWS_40", Severity: "HIGH", Resource: "aws_iam_policy.test-policy"},
+				},
+			},
+		})
+		adapter := benchmark.NewCheckovAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if got {
+			t.Error("CKV_AWS_40 should be excluded by allowlist; got TP, want FN")
+		}
+	})
+
+	t.Run("mixed_only_privesc_counts", func(t *testing.T) {
+		stdout := mustMarshal(t, checkovResultStub{
+			Results: checkovResultsStub{
+				FailedChecks: []checkovCheckStub{
+					{CheckID: "CKV_AWS_286", Severity: "HIGH", Resource: "aws_iam_policy.test-policy"},
+					{CheckID: "CKV_AWS_40", Severity: "HIGH", Resource: "aws_iam_policy.test-policy"},
+				},
+			},
+		})
+		adapter := benchmark.NewCheckovAdapter()
+		got, err := adapter.Parse(stdout, scenario)
+		if err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if !got {
+			t.Error("CKV_AWS_286 should match despite CKV_AWS_40 also present; got FN, want TP")
+		}
+	})
 }

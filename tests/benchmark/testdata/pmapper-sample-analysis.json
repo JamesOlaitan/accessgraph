@@ -3,7 +3,7 @@
     "date_and_time": "2026-04-10T10:06:35.186742+00:00",
     "findings": [
         {
-            "title": "IAM Principal Can Escalate Privileges",
+            "title": "IAM Principals Can Escalate Privileges",
             "severity": "High",
             "impact": "A lower-privilege IAM User or Role is able to gain administrative privileges. This could lead to the lower-privilege principal being used to compromise the account and its resources.",
             "description": "In AWS, IAM Principals such as IAM Users or IAM Roles have their permissions defined using IAM Policies. These policies describe different actions, resources, and conditions where the principal can make a given API call to a service.\n\nAdministrative principals can call any action with any resource, as in the AdministratorAccess AWS-managed policy. However, some permissions may allow another non-administrative principal to gain access to an administrative principal. This represents a privilege escalation risk.\n\nThe following principals could escalate privileges:\n\n* user/escalation-user can escalate privileges by accessing the administrative principal role/admin-role:\n   * user/escalation-user can access via sts:AssumeRole role/admin-role\n\n",
