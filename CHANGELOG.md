@@ -15,8 +15,42 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   pipeline now writes captured fixtures to `fixtures/iamvulnerable/`,
   which must be tracked for fixture-replay reproducibility per
   `docs/benchmark_methodology.md` Section 7.1.
+- PMapper adapter reads `pmapper_findings.json` (fixture-replay) and
+  augments it with escalation-derived admin detections from `nodes.json`.
+  Nodes with `is_admin=true` that lack admin-equivalent policies get
+  synthetic escalation findings; pre-existing admins are excluded. Falls
+  back to raw findings if graph files are unavailable. Finding title
+  filter corrected to plural form matching PMapper's actual output.
+- Prowler adapter filters FAIL findings by a check-ID allowlist (8
+  privesc-related check IDs) extracted from `finding_info.uid`. Without
+  the filter, unrelated compliance findings inflate recall.
+- Checkov adapter filters failed checks by check-ID allowlist
+  (`CKV_AWS_286`, `CKV_AWS_287`, `CKV_AWS_289`) and converts Terraform
+  resource labels to ARN suffixes for matching against
+  `ExpectedAttackPath`, resolving the format mismatch that caused 0%
+  detection.
+- `scripts/capture_scenario.sh` now writes `pmapper_findings.json`,
+  copies terraform supplements from `terraform/localstack-supplements/`
+  when available, and starts LocalStack with `ec2,cloudformation` in
+  addition to `iam,sts,lambda`.
+- `docs/benchmark_methodology.md` Section 4.1 table and Section 4.3
+  per-tool detection criteria updated to reflect adapter changes. New
+  Section 4.5 documents detection model differences and their effect
+  on recall: reachability vs per-principal-pair detection, PMapper
+  failure modes, AccessGraph trust-policy limitation, TN labeling
+  convention, and shared terminal policy observation.
 
 ### Added
+- Terraform supplements for three PassRole scenarios
+  (`terraform/localstack-supplements/`): Lambda-assumable role
+  (privesc15), CloudFormation-assumable role (privesc20), EC2-assumable
+  role with instance profile (privesc3). PMapper's edge modules require
+  destination roles with matching service trust policies.
+- PMapper findings fixtures (`pmapper_findings.json`) for all 15
+  scenarios, captured from `pmapper analysis --output-type json`.
+- Re-captured fixtures for three PassRole scenarios with supplement
+  resources: privesc15 (2 Lambda edges), privesc3 (4 EC2 edges),
+  privesc20 (2 CloudFormation edges).
 - Captured IAMVulnerable fixtures for fixture-replay reproducibility:
   10 privilege-escalation scenarios and 5 true-negative environments,
   each containing `iam_export.json` (AccessGraph input),
