@@ -8,6 +8,10 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `docs/ARCHITECTURE.md` Section 8 directory tree: added `service/export_iam.go`
+  to the `internal/service/` listing. Section 14 opening paragraph now scopes
+  the target catalog to user-facing and evaluator-facing targets, excluding
+  development-only smoke tests.
 - `docs/ARCHITECTURE.md` reconciled with current implementation state:
   Section 8 directory tree updated to reflect the flat fixtures layout
   (10 privesc + 5 TN directories) and the `iamexport` and `iampolicy`

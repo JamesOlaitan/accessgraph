@@ -631,6 +631,7 @@ accessgraph/
 │ │ ├── benchmark.go ← benchmarkFacade implementation: load → invoke → aggregate → store → report
 │ │ ├── benchmark_run.go ← RunBenchmark entry point (benchmark Dependency Inversion (DI) wiring)
 │ │ ├── ingest.go ← RunIngest: parse → classify → store
+│ │ ├── export_iam.go ← RunExportIAM: fetch IAM snapshot from AWS and write to local file
 │ │ ├── report.go ← RunReport: load → reconstruct → render
 │ │ └── util.go ← Shared service utilities (ResolvePrincipalByARN)
 │ │
@@ -1699,7 +1700,7 @@ The following BFS invariants must be verified with property-based tests using `p
 
 ## 14. Makefile Target Specification
 
-`make help` lists all implemented targets with one-line descriptions.
+`make help` lists all implemented targets with one-line descriptions. The following catalog describes targets intended for users and evaluators of the artifact. Development-only targets (smoke tests and similar internal scaffolding) are omitted.
 
 ### Implemented targets
 
