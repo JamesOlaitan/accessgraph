@@ -1,5 +1,6 @@
-# Compiled binaries
+# Compiled binaries and build artifacts
 bin/
+build/
 dist/
 /accessgraph
 

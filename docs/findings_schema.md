@@ -307,7 +307,9 @@ Additional fields at the tool level:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `vulnerable_scenarios_evaluated` | integer | Count of vulnerable scenarios (not TN environments) run for this tool. The invariant `true_positives + false_negatives + timeouts == vulnerable_scenarios_evaluated` holds for each tool, where all three values are summed across chain-length classes. |
+| `vulnerable_scenarios_evaluated` | integer | Count of vulnerable scenarios (not TN environments) run for this tool. |
+
+**Count invariant exception for external tools.** For AccessGraph, `true_positives + false_negatives + timeouts == vulnerable_scenarios_evaluated`. For external tools (Prowler, PMapper, Checkov), the dispatch logic classifies any non-match as FN regardless of whether the scenario is a true negative environment, so `true_positives + false_negatives + timeouts` equals the total number of scenarios evaluated (vulnerable + true negative). The `is_true_negative` field on each result distinguishes the two cases for consumers that need to compute privesc-only recall. See `benchmark_methodology.md` Section 4.5 for the rationale and the deferred resolution.
 
 ### 2.4 `false_positive_rate` object
 

@@ -62,9 +62,9 @@ It is a benchmarked, open-source research instrument evaluated against the IAMVu
 
 ### Language
 
-**Go 1.26+**
+**Go 1.25+**
 
-The project uses Go 1.26+ for its native concurrency support, static binary compilation, and interface-driven testing facilities. This specification assumes Go throughout.
+The project uses Go 1.25+ for its native concurrency support, static binary compilation, and interface-driven testing facilities. This specification assumes Go throughout.
 
 ### Dependency Pinning
 
@@ -404,7 +404,7 @@ Wilson score CI bounds are rounded to six decimal places *after* clamping to [0,
 
 IAMVulnerable is an open-source project whose scenario count and path definitions may change between commits. All benchmarks must be run against a fixed, recorded commit.
 
-**Required:** `fixtures/iamvulnerable/COMMIT` must contain the exact git SHA of the IAMVulnerable commit used to generate the fixture snapshots. `BENCHMARK_RUN.iamvulnerable_commit` must be populated with this SHA at the start of every benchmark run. Any reproduction attempt that uses a different commit produces incomparable results.
+`fixtures/iamvulnerable/COMMIT` contains the exact git SHA of the IAMVulnerable commit used to generate the fixture snapshots. The live capture workflow reads this file and populates `BENCHMARK_RUN.iamvulnerable_commit` at the start of every benchmark run. The offline reproduction (`make reproduce-fixtures`) does not read this file because it replays committed fixtures rather than deploying IAMVulnerable. Any reproduction attempt that uses a different IAMVulnerable commit produces incomparable results.
 
 ### Vulnerable Scenario Taxonomy
 
@@ -434,7 +434,7 @@ IAMVulnerable's 31 paths fall into five categories. Every `SCENARIO` row with `i
 
 To compute Specificity and False Positive Rate, and to prevent tools from trivially achieving 100% recall by flagging everything, the benchmark suite must include clean IAM environments with no escalation path. These are `SCENARIO` rows with `is_true_negative = true`. Their `starting_principal_arn`, `expected_escalation_actions`, and `expected_path_nodes` are empty. Their `chain_length_class` is `none` (`model.ClassNone`) and their `category` is `none` (`model.CategoryNone`). A tool output for a TN scenario that produces any escalation-path finding is scored `LabelFP`. A tool output that produces no finding is scored `LabelTN`.
 
-TN environment `scenario_id` values use the format `tn-clean-NNN` (e.g., `tn-clean-001` through `tn-clean-010`). Fixture directories match this identifier: `fixtures/iamvulnerable/tn-clean-001/`, etc.
+TN environment `scenario_id` values use the format `tn-clean-NNN`. Five environments (`tn-clean-001` through `tn-clean-005`) are currently captured as fixture directories under `fixtures/iamvulnerable/`, with five additional environments planned for follow-up capture.
 
 **`chain_length_class` in `BenchmarkResult` is always copied from the scenario fixture's ground-truth class** — it is never derived from `hop_count` at runtime. The hop-count derivation rule (simple/two_hop/multi_hop from hop_count) applies only to `AttackPath` objects produced during analysis reports. This distinction prevents silent miscounting in the per-class recall table when AccessGraph's BFS discovers a path whose hop count differs from the taxonomy-assigned class.
 
@@ -572,6 +572,7 @@ accessgraph/
 │ ├── ingest.go ← `accessgraph ingest` — parse + store snapshot
 │ ├── analyze.go ← `accessgraph analyze` — blast radius report
 │ ├── benchmark.go ← `accessgraph benchmark` — run tool comparisons
+│ ├── export_iam.go ← `accessgraph export-iam` — export IAM snapshot from AWS
 │ └── report.go ← `accessgraph report` — format and emit findings
 │
 ├── internal/ ← Layer 2: Domain services (business logic)
@@ -642,8 +643,15 @@ accessgraph/
 │ ├── config/ ← Layer 1: Configuration structs and defaults
 │ │ └── config.go
 │ │
-│ └── transport/ ← HTTP transport with offline enforcement
-│ └── offline.go
+│ ├── transport/ ← HTTP transport with offline enforcement
+│ │ └── offline.go
+│ │
+│ ├── iamexport/ ← Layer 2: AWS IAM data export (AWS SDK v2)
+│ │ └── exporter.go ← GetAccountAuthorizationDetails → model-compatible JSON
+│ │
+│ └── iampolicy/ ← Cross-layer policy predicates
+│ ├── doc.go ← Package documentation
+│ └── admin_equivalence.go ← IsAdminEquivalentPolicy: three-form check (findings_schema.md §1.1)
 │
 ├── policy/ ← OPA Rego rules (data, not code)
 │ ├── iam_wildcard.rego
@@ -656,15 +664,15 @@ accessgraph/
 │ │ └── demo_policy.json
 │ └── terraform/ ← (see Section 15)
 │
-├── fixtures/ ← (see Section 15)
-│ ├── iamvulnerable/
-│ │ ├── COMMIT ← Exact IAMVulnerable git commit SHA used to generate these fixtures
-│ │ ├── vulnerable/ ← 31 scenario environment snapshots (JSON)
-│ │ └── clean/ ← TN environment snapshots: IAM configurations with no escalation path
-│ └── tool_outputs/ ← Canonical raw tool outputs for offline adapter testing
-│ ├── prowler/
-│ ├── pmapper/
-│ └── checkov/
+├── fixtures/ ← Committed benchmark fixture data
+│ └── iamvulnerable/ ← 10 privesc scenarios + 5 TN environments (flat layout)
+│ ├── COMMIT ← Upstream IAMVulnerable git SHA used to generate these fixtures
+│ ├── privesc-AssumeRole/ ← Each scenario directory contains:
+│ ├── privesc1-CreateNewPolicyVersion/ iam_export.json, manifest.json,
+│ ├── ... (10 privesc scenarios) prowler.ocsf.json, checkov.json,
+│ ├── tn-clean-001/ pmapper_findings.json, and
+│ ├── ... (5 TN environments) pmapper/ graph storage subdirectory
+│ └── tn-clean-005/
 │
 ├── tests/ ← All test files (mirrors internal/ structure)
 │ ├── parser/
@@ -677,14 +685,19 @@ accessgraph/
 │ │ └── blast_radius_test.go
 │ ├── policy/
 │ │ └── opa_test.go ← Uses httptest server; does not require a running OPA instance
+│ ├── iamexport/
+│ │ └── exporter_test.go
 │ ├── benchmark/
 │ │ ├── aggregator_test.go ← Precision/recall/CI correctness on known TP/FP/FN/TN sets
 │ │ ├── adapter_test.go ← Adapter Parse() correctness against golden tool output fixtures
+│ │ ├── fixture_parser_test.go ← Fixture file parsing tests
+│ │ ├── fpr_schema_test.go ← False positive rate schema tests
 │ │ └── iamvulnerable_test.go ← IAMVulnerable scenario tests (//go:build integration)
 │ ├── store/
 │ │ └── sqlite_test.go
 │ ├── service/
-│ │ └── analysis_test.go
+│ │ ├── analysis_test.go
+│ │ └── benchmark_test.go ← BenchmarkFacade integration tests
 │ ├── report/
 │ │ └── reporter_test.go ← Reporter rendering tests
 │ ├── schema/
@@ -699,7 +712,10 @@ accessgraph/
 │
 ├── scripts/
 │ ├── audit.sh ← Architectural fitness checks (layer deps, interfaces, MetricFloat, JSON tags)
-│ └── run_iamvulnerable.sh ← Automates benchmark against all scenarios
+│ ├── capture_scenario.sh ← Single-scenario fixture capture (LocalStack or live AWS)
+│ ├── run_iamvulnerable.sh ← Automates benchmark against all scenarios
+│ ├── smoke_export_iam.sh ← Smoke test for export-iam command
+│ └── summarize_benchmark.py ← Print per-tool recall table from benchmark JSON
 │
 ├── Dockerfile ← Single benchmark image: Go + Python 3.11 (two venvs)
 ├── docker-compose.yml ← (see Section 15)
@@ -707,7 +723,7 @@ accessgraph/
 ├── requirements-checkov.txt ← Pinned Python deps for Checkov venv (checkov==3.2.509)
 ├── .github/
 │ └── workflows/
-│ └── ci.yml ← Build, test (≥75% coverage, core packages ≥80%), lint, sec scan, race detector
+│ └── ci.yml ← Build, test (≥55% coverage gate, target 75%), lint, sec scan, race detector
 │
 ├── CHANGELOG.md
 ├── LICENSE
@@ -1293,9 +1309,9 @@ Default behavior: empty strings default to bare binary names (`"prowler"`, `"pma
 
 ### Commit File Validation
 
-Before any scenario is executed, `BenchmarkFacade.Run` reads `fixtures/iamvulnerable/COMMIT` and validates that it contains a 40-character lowercase hexadecimal string. If the file is absent, unreadable, or malformed, `BenchmarkFacade.Run` returns `ErrMissingCommitFile` immediately — before any Terraform deployment, before any database writes. The validated SHA is stored in `BENCHMARK_RUN.iamvulnerable_commit`.
+The live capture workflow reads `fixtures/iamvulnerable/COMMIT` and validates that it contains a 40-character lowercase hexadecimal string (regex: `^[0-9a-f]{40}$`). If the file is absent, unreadable, or malformed, the live workflow returns `ErrMissingCommitFile` before any Terraform deployment or database writes. The validated SHA is stored in `BENCHMARK_RUN.iamvulnerable_commit`.
 
-Validation regex: `^[0-9a-f]{40}$`. Any deviation returns `ErrMissingCommitFile`.
+The offline reproduction (`make reproduce-fixtures`) does not invoke this validation path. It uses committed fixtures directly and does not read the COMMIT file.
 
 ### Timeout Enforcement
 
@@ -1613,13 +1629,13 @@ tests/
 
 ### Coverage Gates
 
-| Scope | Minimum Coverage | Rationale |
-|-------|-----------------|-----------|
-| Total (`internal/`) | 75% | CI gate |
-| `internal/graph` | 80% | Graph traversal is the core technical contribution |
-| `internal/analyzer` | 80% | Blast radius metrics are the primary output |
+| Scope | Current Gate | Target | Rationale |
+|-------|-------------|--------|-----------|
+| Total (`internal/`) | 55% | 75% | Gate set conservatively below the current ~60% to allow ongoing development; raised as coverage improves |
+| `internal/graph` | — | 80% | Graph traversal is the core technical contribution |
+| `internal/analyzer` | — | 80% | Blast radius metrics are the primary output |
 
-CI fails if total coverage falls below 75% or if `internal/graph` or `internal/analyzer` fall below 80%.
+CI enforces a 55% total coverage gate. The target coverage is 75% total and 80% for core packages (`internal/graph`, `internal/analyzer`). Per-package gates are not yet enforced in CI; the 80% targets are tracked as project goals.
 
 ### Test Class Pattern
 
@@ -1699,29 +1715,30 @@ The following BFS invariants must be verified with property-based tests using `p
 | `make clean` | Remove `bin/`, `*.test` files, and `coverage.txt` artifacts. | — |
 | `make demo` | Ingest the bundled sample IAM snapshot and run blast-radius analysis; works from a clean clone with no environment variables set. Depends on `build`. | Go only |
 | `make audit` | Run architectural fitness checks (layer deps, interface assertions, MetricFloat, JSON tags). | bash |
+| `make reproduce-fixtures` | Reproduce the benchmark comparison table from committed fixtures. Builds the integration binary, runs the four-tool benchmark against `fixtures/iamvulnerable/`, writes structured JSON to `build/reproduction-result.json`, and prints a per-tool recall summary table. | Go + Python 3 |
+| `make capture-scenario` | Capture fixtures for a single scenario against LocalStack or live AWS. Usage: `make capture-scenario SCENARIO=<name>`. | Go + Docker + Terraform |
 | `make docker-build` | Build the benchmark Docker image. | Docker |
 | `make docker-up` | Start all tool dependency containers via docker-compose. | Docker |
 | `make docker-down` | Stop and remove containers. | Docker |
 | `make help` | Print all targets with one-line descriptions. | — |
 
-`make demo`, `make test`, and `make build` must work from a clean clone with only Go installed.
+`make demo`, `make test`, `make build`, and `make reproduce-fixtures` must work from a clean clone with only Go (and Python 3 for `reproduce-fixtures`) installed.
 
-### Deferred targets
+### Targets planned for follow-up work
 
-The following targets are specified but not yet implemented. They are needed for the live-AWS benchmark phase. When added, targets that require Docker or AWS credentials must print a clear error if those prerequisites are absent rather than failing silently.
+The following targets are specified but not yet implemented. They are needed for the live-AWS benchmark workflow. When added, targets that require Docker or AWS credentials must print a clear error if those prerequisites are absent rather than failing silently.
 
-| Target | Description | Requires |
-|--------|-------------|----------|
+| Target | What it would do | Requires |
+|--------|-----------------|----------|
 | `make benchmark` | Run the full benchmark suite against golden fixtures. Prerequisite: `verify-fixtures`. | Go + Docker + fixtures |
 | `make benchmark-full` | Run the benchmark suite against real AWS. Prerequisite: `verify-fixtures`. | Go + Docker + AWS credentials + fixtures |
 | `make fixtures` | Re-generate golden fixtures from the pinned IAMVulnerable commit. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
-| `make capture-tool-outputs` | Deploy each IAMVulnerable scenario, run all four tools (AccessGraph, Prowler, PMapper, Checkov), and save the per-tool fixtures to `fixtures/iamvulnerable/<scenario>/<tool>/`. See `docs/benchmark_methodology.md` §7.0 for per-tool fixture types. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
-| `make verify-fixtures` | Run `sha256sum -c fixtures/iamvulnerable/CHECKSUMS`; fails loudly on any mismatch. Runs automatically as a prerequisite of `make benchmark` and `make benchmark-full`. | fixtures |
-| `make generate-checksums` | Generate `fixtures/iamvulnerable/CHECKSUMS` by computing SHA-256 hashes of all files under `fixtures/iamvulnerable/` and `fixtures/tool_outputs/`. Committed to git. Destructive: overwrites existing CHECKSUMS. Run after `make fixtures` or `make capture-tool-outputs`. | — |
-| `make reproduce-fixtures` | Offline reproduction path. Runs the full benchmark pipeline against golden fixtures and pre-captured tool outputs; writes output to `results/reproduction_fixtures_$(date +%Y%m%d).json`. Diffs key metrics against `docs/benchmark_methodology.md` Section 7.3. Exits non-zero on divergence. | Go + Docker + fixtures |
-| `make reproduce` | Full live-AWS reproduction path. Validates `fixtures/iamvulnerable/COMMIT`, checks AWS credentials, clones IAMVulnerable at the pinned commit, runs `make benchmark-full`, and writes output to `results/reproduction_$(date +%Y%m%d).json`. Expected wall-clock time: 4–6 hours. | Go + Docker + AWS credentials |
+| `make capture-tool-outputs` | Deploy each IAMVulnerable scenario, run all four tools, and save the per-tool fixtures to `fixtures/iamvulnerable/<scenario>/`. See `docs/benchmark_methodology.md` §7.0 for per-tool fixture types. Destructive: overwrites existing fixtures. | Go + Docker + AWS credentials |
+| `make verify-fixtures` | Run `sha256sum -c fixtures/iamvulnerable/CHECKSUMS`; fail loudly on any mismatch. Would run automatically as a prerequisite of `make benchmark` and `make benchmark-full`. | fixtures |
+| `make generate-checksums` | Generate `fixtures/iamvulnerable/CHECKSUMS` by computing SHA-256 hashes of all files under `fixtures/iamvulnerable/`. Committed to git. Destructive: overwrites existing CHECKSUMS. Run after `make fixtures` or `make capture-tool-outputs`. | — |
+| `make reproduce` | Full live-AWS reproduction path. Validate `fixtures/iamvulnerable/COMMIT`, check AWS credentials, clone IAMVulnerable at the pinned commit, run `make benchmark-full`, and write output to `results/reproduction_$(date +%Y%m%d).json`. Expected wall-clock time: 4–6 hours. | Go + Docker + AWS credentials |
 
-See Section 15 for a consolidated list of all planned extensions.
+These targets are not implemented because the live-AWS capture workflow, CHECKSUMS infrastructure, and full benchmark orchestration depend on AWS credentials and Docker-based tool environments that are outside the scope of the current offline reproduction model. The offline reproduction (`make reproduce-fixtures`) covers the AE Functional badge use case; the targets above are needed for live-AWS reproducibility.
 
 
 ---
@@ -1734,7 +1751,7 @@ The following items are specified in this document but not yet implemented. They
 
 2. **Terraform sample data** (`sample/terraform/`). Example Terraform plan JSON files for demos and testing, parallel to `sample/aws/`.
 
-3. **Fixture directory** (`fixtures/iamvulnerable/`). Pre-captured IAM environment snapshots for the 31 IAMVulnerable scenarios and TN environments, plus canonical tool output files in `fixtures/tool_outputs/` for offline adapter testing and benchmark reproduction.
+3. **[PARTIAL] Fixture directory** (`fixtures/iamvulnerable/`). Currently contains 10 privesc scenarios and 5 TN environments with per-tool fixture files. Remaining 21 privesc scenarios and 5 TN environments are planned for follow-up capture.
 
 4. **[DONE] Dockerfile.** Single benchmark image co-installing Go and two Python 3.11 virtual environments (one for Prowler + PMapper, one for Checkov), built from `golang:1.26-bookworm` with a pinned sha256 digest. Tool binary paths exposed via entrypoint environment variables per the Benchmark Execution Model section above.
 
@@ -1742,7 +1759,7 @@ The following items are specified in this document but not yet implemented. They
 
 6. **Go performance benchmarks** (Go `testing.B`). BFS performance benchmarks at varying graph sizes to validate the O(V + E) complexity claim empirically. Needed before any wall-clock performance claims can be made.
 
-7. **Deferred Makefile targets.** Eight targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce-fixtures`, `reproduce`. (`docker-build`, `docker-up`, `docker-down` were added in commit 694ef29.) See Section 14 for full descriptions and prerequisites.
+7. **Deferred Makefile targets.** Seven targets for the live-AWS benchmark phase: `benchmark`, `benchmark-full`, `fixtures`, `capture-tool-outputs`, `verify-fixtures`, `generate-checksums`, `reproduce`. (`docker-build`, `docker-up`, `docker-down` were added in commit 694ef29; `reproduce-fixtures` and `capture-scenario` are implemented.) See Section 14 for full descriptions and prerequisites.
 
 8. **Vendoring.** The module will be vendored (`go mod vendor`). All builds — local, CI, and Docker — will use `go build -mod=vendor`. A CI vendor check (`go mod vendor && git diff --exit-code vendor/`) will fail the build if the vendor directory is out of sync with `go.mod`. The `make vendor` target will regenerate the vendor directory. `make verify-deps` will run `go mod verify` and the vendor diff check without building.
 

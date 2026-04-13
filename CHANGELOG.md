@@ -8,6 +8,22 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `docs/ARCHITECTURE.md` reconciled with current implementation state:
+  Section 8 directory tree updated to reflect the flat fixtures layout
+  (10 privesc + 5 TN directories) and the `iamexport` and `iampolicy`
+  packages; Section 14 Makefile target catalog now describes only
+  implemented targets, with deferred targets in a separate subsection;
+  Go version reference aligned to 1.25+; coverage gate references
+  updated to the current 55% gate with the 75% target; Section 6.1 and
+  6.3 updated to reflect the current fixture and TN capture state.
+- `docs/findings_schema.md` Section 2.3 `by_tool` count invariant
+  updated to document the external-tool exception where FN counts
+  include TN-labeled-as-FN results, consistent with
+  `benchmark_methodology.md` Section 4.5.
+- `README.md` coverage gate description updated to reflect the current
+  55% CI gate and 75% project target. Python 3.8+ added to the main
+  prerequisites section.
+- `.gitignore` now excludes `build/` (created by `make reproduce-fixtures`).
 - `go.mod` directive relaxed from `go 1.26.1` to `go 1.25.0`. The
   codebase uses no 1.26-specific language features or stdlib packages;
   `log/slog` (Go 1.21) is the deepest stdlib dependency. The effective
@@ -46,6 +62,10 @@ to Semantic Versioning (https://semver.org/spec/v2.0.0.html).
   convention, and shared terminal policy observation.
 
 ### Added
+- `fixtures/iamvulnerable/COMMIT` containing the upstream IAMVulnerable git
+  SHA (`0f298666f9b7cfa01488b86912afdb211773188a`) used to generate the
+  committed fixture snapshots, as specified in `docs/ARCHITECTURE.md`
+  Section 6.1.
 - Terraform supplements for three PassRole scenarios
   (`terraform/localstack-supplements/`): Lambda-assumable role
   (privesc15), CloudFormation-assumable role (privesc20), EC2-assumable

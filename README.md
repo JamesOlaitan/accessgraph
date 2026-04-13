@@ -42,7 +42,9 @@ are made during graph construction or traversal.
 ### Prerequisites
 
 - Go 1.25 or later ([download](https://go.dev/dl/))
+- Python 3.8 or later (for `make reproduce-fixtures` benchmark summary)
 - Linux or macOS; any Go-supported platform
+- Approximately 80 MB disk space (repository clone)
 - No Docker, no AWS account, no external services required for basic usage
 - golangci-lint v2.11+ (for `make lint` only; not required to build or test)
 
@@ -250,6 +252,9 @@ prowler           10    0     100%
 Full JSON output: build/reproduction-result.json
 ```
 
+Expected wall-clock time: under one minute on a modern laptop (compilation
+dominates; the benchmark itself completes in seconds).
+
 The full structured JSON result (per-scenario labels, confidence intervals,
 chain-length class breakdowns) is written to `build/reproduction-result.json`.
 See `docs/benchmark_methodology.md` Section 4.5 for interpretation of the
@@ -347,10 +352,12 @@ go test -race -count=1 -timeout 120s -coverprofile=coverage.txt \
   -coverpkg=./internal/... ./tests/...
 ```
 
-CI requires 75% total coverage. `internal/graph` and `internal/analyzer` must
-individually exceed 80%. Tests live in `tests/` mirroring the `internal/`
-package structure, not alongside source files. Integration tests require the
-`integration` build tag.
+CI enforces a 55% total coverage gate, set conservatively below the current
+~60% to allow ongoing development. The target coverage for the project is
+75% total and 80% for core packages (`internal/graph`, `internal/analyzer`),
+and the gate is raised as coverage improves. Tests live in `tests/` mirroring
+the `internal/` package structure, not alongside source files. Integration
+tests require the `integration` build tag.
 
 ## Documentation
 
